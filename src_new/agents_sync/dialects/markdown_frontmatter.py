@@ -14,9 +14,11 @@ tool's Markdown file into the canonical document and renders it back:
 - ``extract_id`` — the id in isolation, recovered from its own line even when the
   surrounding YAML will not parse; never raises (FR-11).
 
-Pure: operates on ``text: str``, does no I/O, and applies no parse-size bounds —
-that size-explosion hardening is a separate concern (``parser_bounds``, deferred
-from S9; see the implementation plan's S24 gate).
+Pure: operates on ``text: str`` and does no I/O. Size-explosion hardening lives in
+``parser_bounds`` (the S24 gate) and is threaded in here: the front-matter regex scans
+only a bounded leading window (``enforce_frontmatter_window``) so a multi-MB body cannot
+force a full-document walk, and the YAML loader carries a node-counting bounded composer
+that rejects alias/anchor bombs.
 """
 
 from __future__ import annotations
@@ -37,6 +39,10 @@ from agents_sync.dialects.field_mapping import (
 )
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.tool_surface import ToolSurface
+from agents_sync.parser_bounds import (
+    enforce_frontmatter_window,
+    make_bounded_composer_class,
+)
 
 # A leading ``---`` YAML block, then the body. Group 1 is the front-matter, group 2
 # the body. ``\A`` anchors it to the document start so only a true front-matter block
@@ -95,16 +101,22 @@ def _frontmatter_block(text: str) -> str | None:
     render-seed paths so they cannot drift from the same ``_FRONTMATTER_RE`` grammar.
     ``_split_frontmatter`` keeps its own match because it also needs the body offset.
     """
-    match = _FRONTMATTER_RE.match(text)
+    match = _FRONTMATTER_RE.match(enforce_frontmatter_window(text))
     return match.group(1) if match else None
 
 
 def _yaml() -> YAML:
-    """A round-trip YAML configured to preserve quotes, width, and indentation."""
+    """A round-trip YAML configured to preserve quotes, width, and indentation.
+
+    The composer is the node-counting bounded variant (``parser_bounds``), which
+    aborts a pathological alias/anchor graph (SEC-C-01) well above any legitimate
+    front-matter's node count.
+    """
     yaml = YAML(typ="rt")
     yaml.preserve_quotes = True
     yaml.width = 4096
     yaml.indent(mapping=2, sequence=4, offset=2)
+    yaml.Composer = make_bounded_composer_class()
     return yaml
 
 
@@ -113,8 +125,12 @@ def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
 
     A document with no leading ``---`` block is a valid metadata-less file: ``({}, body)``.
     A block that is present but not a YAML mapping (or unparseable) is malformed.
+
+    The regex scans only the bounded leading window; the body is recovered from the
+    original text via ``match.start(2)`` (the window is a prefix, so the offset aligns),
+    so a multi-MB body is preserved without the scan walking the whole document.
     """
-    match = _FRONTMATTER_RE.match(text)
+    match = _FRONTMATTER_RE.match(enforce_frontmatter_window(text))
     if match is None:
         return {}, text.strip()
     raw_block = match.group(1)

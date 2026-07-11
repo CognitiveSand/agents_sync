@@ -27,6 +27,7 @@ from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
 from agents_sync.domain_model.sync_state import SurfaceLocation
 from agents_sync.domain_model.tool_surface import KeyedMapSlot, SurfaceFormat, ToolSurface
+from agents_sync.parser_bounds import read_text_bounded
 from agents_sync.rules_import_resolution import RulesImportError, inline_rules_imports
 from agents_sync.translation import extract_artifact_id, file_to_canonical
 
@@ -147,8 +148,8 @@ def _observe_file(tool_surface: ToolSurface, previous: PreviousObservations) -> 
     assert isinstance(location, Path)
     modified_time = _modified_time(location)
     try:
-        text = location.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as error:
+        text = read_text_bounded(location)
+    except (OSError, UnicodeDecodeError, MalformedSurfaceError) as error:
         return SurfaceObservation(
             tool_surface=tool_surface,
             modified_time=modified_time,
@@ -178,7 +179,7 @@ def _observe_keyed_map(
         return []
     modified_time = _modified_time(spec.file)
     try:
-        text = spec.file.read_text(encoding="utf-8")
+        text = read_text_bounded(spec.file)
         slot_map = _navigate_slot_map(
             deserialize(text, spec.surface_format.file_format),
             spec.surface_format.map_key_path,

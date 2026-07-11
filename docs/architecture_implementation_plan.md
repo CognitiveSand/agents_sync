@@ -14,7 +14,7 @@
 
 ## Progress (current state)
 
-- **Branch:** `fix/size-explosion-hardening` · **Version:** `0.7.48` (each rebuild step is a
+- **Branch:** `fix/size-explosion-hardening` · **Version:** `0.7.55` (each rebuild step is a
   PATCH `feat(rebuild)`; nothing user-visible ships until cutover S24–S25).
 - **Phase A — domain core:** S1–S4 ✓ (shipped through 0.7.15).
 - **Phase B — planner:** S5, S6a–S6c, S7, S8a–S8d ✓ (shipped through 0.7.15).
@@ -110,12 +110,20 @@
   fields only → this *is* NFR-15's documented residual (prose secrets belong in `env`/`headers`), so
   the export docstring now points at it — no spec change. See
   `docs/audits/code_audit_remediation_2026_06_23__14_16.md`.
+- **S24 gate — `parser_bounds` size-explosion hardening ✓ (0.7.55).** Ported to `src_new/` as its
+  own concern (deferred from S9): a 16 MiB per-file text cap, a 256 KiB front-matter scan window,
+  and a 10 000-node bounded YAML composer. `ParserBoundsExceeded` subclasses the dialect layer's
+  `MalformedSurfaceError`, so the read phase's existing catch records a `ParseFailure` with no
+  caller change. Wired at the minimal chokepoints: the structured-text codec (one seam covers
+  JSON/TOML + keyed-map slots), the markdown front-matter dialect (window + composer), and the
+  file-read seams (read phase, canonical/state store, runtime config, `@import`). Conformance suite
+  + 697 rebuild tests green; the S24 cutover is now unblocked.
 - **Audit cadence:** the end-of-S20 two-auditor audit runs once, after the final S20
   sub-increment (before S21) — not between sub-increments. Each sub-increment still gets docs,
   red-first tests, full CI, and its own commit/`/bcp`.
 - **Phases D–G (S14–S25):** not started.
-- **Deferred, tracked here so they are not lost:** size-explosion hardening (`parser_bounds`) →
-  S24 gate; mcp `@import` resolution + framework egress-guard *enforcement* → read phase S17–S19;
+- **Deferred, tracked here so they are not lost:** mcp `@import` resolution + framework
+  egress-guard *enforcement* → read phase S17–S19;
   mcp secret policy → S18; per-tool field-spelling overrides (incl. opencode `enabled` inversion)
   + codex `env_http_headers`/`bearer_token_env_var` carriers → S20 (carriers ✓ increment 5); the
   per-tool inline `env_reference_style` (the `${env:NAME}`↔`${NAME}`↔`{env:NAME}` *style*

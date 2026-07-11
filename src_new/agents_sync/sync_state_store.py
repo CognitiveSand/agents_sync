@@ -23,6 +23,7 @@ from agents_sync.domain_model.sync_state import (
     SyncState,
 )
 from agents_sync.domain_model.tool_surface import KeyedMapSlot
+from agents_sync.parser_bounds import read_text_bounded
 from agents_sync.store_quarantine import quarantine_corrupt_file
 
 STATE_SCHEMA_VERSION = 1
@@ -49,7 +50,7 @@ def load_sync_state(state_dir: Path) -> SyncState:
     if not path.exists():
         return SyncState()
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        data = json.loads(read_text_bounded(path))
         if not isinstance(data, dict):
             raise ValueError("root is not a JSON object")
         if data.get("schema_version") != STATE_SCHEMA_VERSION:

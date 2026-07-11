@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, assert_never
 
+from agents_sync.parser_bounds import ParserBoundsExceeded, read_text_bounded
 from agents_sync.secret_policy import ALLOWED_SECRET_POLICIES, SECRET_POLICY_REFUSED
 from agents_sync.tools.agentic_tools_registry import ALL_TOOL_DEFINITIONS
 from agents_sync.tools.tool_definition import PathAnchor, ToolDefinition
@@ -50,6 +51,7 @@ class RuntimeConfig:
 
 
 # --- platform anchors (pure) ----------------------------------------------------------
+
 
 def _windows_root(
     env_var: str, profile_parts: tuple[str, ...], env: Mapping[str, str], home: Path
@@ -108,6 +110,7 @@ def resolve_default_paths(
 
 # --- load + validate ------------------------------------------------------------------
 
+
 def load_runtime_config(
     config_path: Path | None,
     *,
@@ -157,8 +160,13 @@ def _load_config_file(path: Path) -> Mapping[str, Any]:
         return {}
     try:
         # utf-8-sig tolerates a BOM that Windows-authored TOML can carry.
-        data = tomllib.loads(path.read_text(encoding="utf-8-sig"))
-    except (tomllib.TOMLDecodeError, OSError, UnicodeDecodeError) as exc:
+        data = tomllib.loads(read_text_bounded(path, encoding="utf-8-sig"))
+    except (
+        tomllib.TOMLDecodeError,
+        OSError,
+        UnicodeDecodeError,
+        ParserBoundsExceeded,
+    ) as exc:
         raise ConfigurationError(f"malformed TOML in config file {path}: {exc}") from exc
     if not data:
         return {}

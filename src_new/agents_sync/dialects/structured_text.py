@@ -28,12 +28,14 @@ from agents_sync.dialects.field_mapping import (
 )
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.tool_surface import ToolSurface
+from agents_sync.parser_bounds import enforce_text_bound
 
 _TOML_BARE_KEY = re.compile(r"[A-Za-z0-9_-]+")
 
 
 def deserialize(text: str, file_format: str) -> dict[str, Any]:
     """Parse ``text`` into a mapping; raise on malformed content or an unsupported format."""
+    enforce_text_bound(text, label=f"<structured-text:{file_format}>")
     if not text.strip():
         return {}
     if file_format == "json":

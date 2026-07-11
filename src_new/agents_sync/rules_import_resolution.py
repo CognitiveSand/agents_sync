@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from agents_sync.parser_bounds import ParserBoundsExceeded, read_text_bounded
+
 _IMPORT_LINE_PATTERN = re.compile(r"^\s*@(\S+)\s*$")
 _MAX_IMPORT_DEPTH = 10
 
@@ -50,8 +52,8 @@ def inline_rules_imports(
         if target in _seen_targets:
             raise RulesImportError(f"rules @import cycle detected: {relative_target}")
         try:
-            imported_text = target.read_text(encoding="utf-8")
-        except OSError as error:
+            imported_text = read_text_bounded(target)
+        except (OSError, ParserBoundsExceeded) as error:
             raise RulesImportError(f"rules @import target unreadable: {relative_target}") from error
         inlined, _ = inline_rules_imports(
             imported_text, rules_root, _seen_targets=_seen_targets | {target}, _depth=_depth + 1

@@ -31,6 +31,7 @@ from typing import Any
 from agents_sync.atomic_file_writer import write_text_atomic
 from agents_sync.domain_model.artifact_identity import InvalidArtifactId, validate_artifact_id
 from agents_sync.domain_model.canonical_document import CanonicalDocument, CorruptCanonical
+from agents_sync.parser_bounds import ParserBoundsExceeded, read_text_bounded
 from agents_sync.store_quarantine import quarantine_corrupt_file
 
 CANONICAL_SCHEMA_VERSION = 1
@@ -96,7 +97,9 @@ def load_canonical(
     if not path.exists():
         return None
     try:
-        text = path.read_text(encoding="utf-8")
+        text = read_text_bounded(path)
+    except ParserBoundsExceeded:
+        return _quarantine(store_dir, path, "oversize input")
     except (OSError, UnicodeDecodeError):
         return _quarantine(store_dir, path, "unreadable bytes")
     try:
@@ -161,9 +164,7 @@ def _next_metadata(
     return CanonicalMetadata(last_modified=clock(), generation=previous_generation + 1)
 
 
-def _write_envelope(
-    path: Path, document: CanonicalDocument, metadata: CanonicalMetadata
-) -> None:
+def _write_envelope(path: Path, document: CanonicalDocument, metadata: CanonicalMetadata) -> None:
     """Serialise the store envelope (schema version + metadata block + content) and
     write it atomically — the single home for both the stamping and import write paths."""
     payload: dict[str, Any] = {
@@ -196,8 +197,8 @@ def _read_store_file(path: Path) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        data = json.loads(read_text_bounded(path))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ParserBoundsExceeded):
         return None
     return data if isinstance(data, dict) else None
 
