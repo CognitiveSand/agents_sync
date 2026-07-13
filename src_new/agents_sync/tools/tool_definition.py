@@ -75,7 +75,28 @@ class RulesFileSurfaceRecipe:
     default_location: DefaultLocation | None
 
 
-type SurfaceRecipe = DirectorySurfaceRecipe | KeyedMapSurfaceRecipe | RulesFileSurfaceRecipe
+@dataclass(frozen=True)
+class SkillFolderSurfaceRecipe:
+    """Skills: a folder per artifact, each holding a ``SKILL.md`` (FR-06, S23f).
+
+    The artifact lives at ``<default_location>/<slug>/SKILL.md``; its identity is the
+    ``pair_id`` embedded in the SKILL.md front-matter (the folder name is cosmetic),
+    so the ``surface_format`` is the same markdown-frontmatter recipe an agent uses.
+    Auxiliary files inside a skill folder are deferred to S23i — until then a folder
+    carrying anything besides ``SKILL.md`` is frozen loudly, never truncated."""
+
+    kind: str
+    config_key: str
+    surface_format: SurfaceFormat
+    default_location: DefaultLocation | None
+
+
+type SurfaceRecipe = (
+    DirectorySurfaceRecipe
+    | KeyedMapSurfaceRecipe
+    | RulesFileSurfaceRecipe
+    | SkillFolderSurfaceRecipe
+)
 
 
 @dataclass(frozen=True)

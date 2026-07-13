@@ -65,10 +65,34 @@ class RulesFileSurfaceSpec:
     surface_format: SurfaceFormat
 
 
-type SurfaceSpec = DirectorySurfaceSpec | KeyedMapSurfaceSpec | RulesFileSurfaceSpec
+@dataclass(frozen=True)
+class SkillFolderSurfaceSpec:
+    """Skills: every ``<slug>/SKILL.md`` under ``root`` is one surface (FR-06, S23f).
+
+    Identity is the SKILL.md's embedded ``pair_id`` (the folder name is cosmetic). A
+    skill folder carrying anything besides its ``SKILL.md`` is frozen (deferred S23i)."""
+
+    tool: str
+    kind: str
+    root: Path
+    surface_format: SurfaceFormat
+
+
+type SurfaceSpec = (
+    DirectorySurfaceSpec | KeyedMapSurfaceSpec | RulesFileSurfaceSpec | SkillFolderSurfaceSpec
+)
 type PreviousObservations = Mapping[SurfaceLocation, SurfaceObservation]
 
 _NO_HISTORY: PreviousObservations = {}
+_SKILL_FILENAME = "SKILL.md"
+
+
+class SkillAuxiliaryFilesUnsupportedError(ValueError):
+    """A skill folder carries auxiliary files beyond its ``SKILL.md`` — deferred to S23i.
+
+    Raised by the read walker and caught per-folder into a ``ParseFailure`` (freeze),
+    mirroring ``RulesImportError``: loud and reported, but isolated (FR-02), so one
+    aux-bearing skill never crashes the poll and is never silently truncated."""
 
 
 def read_tool_surfaces(
@@ -82,6 +106,8 @@ def read_tool_surfaces(
             observations.extend(_observe_directory(spec, previous_observations))
         elif isinstance(spec, KeyedMapSurfaceSpec):
             observations.extend(_observe_keyed_map(spec, previous_observations))
+        elif isinstance(spec, SkillFolderSurfaceSpec):
+            observations.extend(_observe_skill_folder(spec, previous_observations))
         else:
             observations.extend(_observe_rules_file(spec, previous_observations))
     return tuple(observations)
@@ -100,6 +126,49 @@ def _observe_directory(
         for path in sorted(spec.directory.iterdir())
         if path.is_file() and path.name.endswith(spec.filename_suffix)
     ]
+
+
+def _observe_skill_folder(
+    spec: SkillFolderSurfaceSpec, previous: PreviousObservations
+) -> list[SurfaceObservation]:
+    """Every ``<slug>/SKILL.md`` under the skill root is one surface (FR-06).
+
+    A skill folder carrying auxiliary files is frozen (S23i) rather than truncated:
+    the guard raises, caught here into a per-folder ``ParseFailure`` — loud but
+    isolated, exactly like ``_resolve_rules_imports_in``'s import failures."""
+    if not spec.root.is_dir():
+        return []
+    observations: list[SurfaceObservation] = []
+    for skill_dir in sorted(spec.root.iterdir()):
+        if not skill_dir.is_dir():
+            continue
+        skill_md = skill_dir / _SKILL_FILENAME
+        surface = ToolSurface(spec.tool, spec.kind, skill_md, spec.surface_format)
+        try:
+            _reject_skill_auxiliary_files(skill_dir)
+        except SkillAuxiliaryFilesUnsupportedError as error:
+            observations.append(_frozen_skill(surface, skill_md, str(error)))
+            continue
+        if skill_md.is_file():
+            observations.append(_observe_file(surface, previous))
+    return observations
+
+
+def _reject_skill_auxiliary_files(skill_dir: Path) -> None:
+    """Raise if the folder holds anything besides its ``SKILL.md`` (deferred S23i)."""
+    extras = sorted(entry.name for entry in skill_dir.iterdir() if entry.name != _SKILL_FILENAME)
+    if extras:
+        raise SkillAuxiliaryFilesUnsupportedError(
+            f"skill folder {skill_dir.name!r} carries auxiliary files {extras}; "
+            f"directory-tree skills are deferred to S23i — frozen, not truncated"
+        )
+
+
+def _frozen_skill(surface: ToolSurface, skill_md: Path, reason: str) -> SurfaceObservation:
+    """A skill frozen for unsupported content: reported, not propagated (FR-02)."""
+    return SurfaceObservation(
+        tool_surface=surface, modified_time=_modified_time(skill_md), parsed=ParseFailure(reason)
+    )
 
 
 def _observe_rules_file(

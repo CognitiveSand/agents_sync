@@ -27,16 +27,19 @@ EXPECTED_DEFAULT_LOCATIONS: dict[str, DefaultLocation | None] = {
     "claude_commands_dir": DefaultLocation(HOME, (".claude", "commands")),
     "claude_rules_dir": DefaultLocation(HOME, (".claude",)),
     "claude_mcp_servers_file": DefaultLocation(HOME, (".claude.json",)),
+    "claude_skills_dir": DefaultLocation(HOME, (".claude", "skills")),
     # codex — under ~/.codex
     "codex_agents_dir": DefaultLocation(HOME, (".codex", "agents")),
     "codex_prompts_dir": DefaultLocation(HOME, (".codex", "prompts")),
     "codex_rules_dir": DefaultLocation(HOME, (".codex",)),
     "codex_config_file": DefaultLocation(HOME, (".codex", "config.toml")),
+    "codex_skills_dir": DefaultLocation(HOME, (".codex", "skills")),
     # cursor — under ~/.cursor
     "cursor_agents_dir": DefaultLocation(HOME, (".cursor", "agents")),
     "cursor_commands_dir": DefaultLocation(HOME, (".cursor", "commands")),
     "cursor_rules_dir": DefaultLocation(HOME, (".cursor", "rules")),
     "cursor_mcp_servers_file": DefaultLocation(HOME, (".cursor", "mcp.json")),
+    "cursor_skills_dir": DefaultLocation(HOME, (".cursor", "skills")),
     # copilot — CLI surfaces under ~/.copilot; the VS Code user surfaces have no
     # built-in default (discovered / configured only).
     "copilot_cli_agents_dir": DefaultLocation(HOME, (".copilot", "agents")),
@@ -48,12 +51,16 @@ EXPECTED_DEFAULT_LOCATIONS: dict[str, DefaultLocation | None] = {
     "gemini_cli_commands_dir": DefaultLocation(HOME, (".gemini", "commands")),
     "gemini_cli_rules_dir": DefaultLocation(HOME, (".gemini",)),
     "gemini_cli_settings_file": DefaultLocation(HOME, (".gemini", "settings.json")),
+    "gemini_cli_skills_dir": DefaultLocation(HOME, (".gemini", "skills")),
     # opencode — under the per-OS config root (CONFIG_ROOT: ~/.config or %APPDATA%),
     # the only tool whose default root diverges by operating system.
     "opencode_agents_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "agents")),
     "opencode_commands_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "commands")),
     "opencode_rules_dir": DefaultLocation(CONFIG_ROOT, ("opencode",)),
     "opencode_config_file": DefaultLocation(CONFIG_ROOT, ("opencode", "opencode.json")),
+    "opencode_skills_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "skills")),
+    # antigravity — skills only, under ~/.gemini/antigravity
+    "antigravity_skills_dir": DefaultLocation(HOME, (".gemini", "antigravity", "skills")),
 }
 
 
@@ -75,8 +82,9 @@ def test_expected_table_covers_exactly_the_declared_config_keys() -> None:
 
 @pytest.mark.parametrize("config_key", sorted(EXPECTED_DEFAULT_LOCATIONS))
 def test_each_recipe_declares_its_documented_default_location(config_key: str) -> None:
-    assert _RECIPES_BY_CONFIG_KEY[config_key].default_location == (
-        EXPECTED_DEFAULT_LOCATIONS[config_key]
+    assert (
+        _RECIPES_BY_CONFIG_KEY[config_key].default_location
+        == (EXPECTED_DEFAULT_LOCATIONS[config_key])
     )
 
 

@@ -18,6 +18,7 @@ from agents_sync.tools.tool_definition import (
     KeyedMapSurfaceRecipe,
     PathAnchor,
     RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -68,6 +69,12 @@ OPENCODE_TOOL = ToolDefinition(
             "opencode_config_file",
             mcp_surface_format(("mcp",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "opencode.json")),
+        ),
+        SkillFolderSurfaceRecipe(
+            "skill",
+            "opencode_skills_dir",
+            markdown_surface_format(),
+            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "skills")),
         ),
     ),
 )

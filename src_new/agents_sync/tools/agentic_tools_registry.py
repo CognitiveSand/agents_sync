@@ -16,6 +16,7 @@ from agents_sync.read_tool_surfaces import (
     DirectorySurfaceSpec,
     KeyedMapSurfaceSpec,
     RulesFileSurfaceSpec,
+    SkillFolderSurfaceSpec,
     SurfaceSpec,
 )
 from agents_sync.tools.antigravity import ANTIGRAVITY_TOOL
@@ -28,6 +29,7 @@ from agents_sync.tools.opencode import OPENCODE_TOOL
 from agents_sync.tools.tool_definition import (
     DirectorySurfaceRecipe,
     RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -84,6 +86,12 @@ def surface_specs_for(
                     resolved_path,
                     recipe.candidate_filenames,
                     recipe.surface_format,
+                )
+            )
+        elif isinstance(recipe, SkillFolderSurfaceRecipe):
+            specs.append(
+                SkillFolderSurfaceSpec(
+                    definition.name, recipe.kind, resolved_path, recipe.surface_format
                 )
             )
         else:

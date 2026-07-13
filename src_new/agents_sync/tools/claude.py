@@ -10,6 +10,7 @@ from agents_sync.tools.tool_definition import (
     KeyedMapSurfaceRecipe,
     PathAnchor,
     RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -61,6 +62,12 @@ CLAUDE_TOOL = ToolDefinition(
             "claude_mcp_servers_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".claude.json",)),
+        ),
+        SkillFolderSurfaceRecipe(
+            "skill",
+            "claude_skills_dir",
+            markdown_surface_format(),
+            default_location=DefaultLocation(_HOME, (".claude", "skills")),
         ),
     ),
 )

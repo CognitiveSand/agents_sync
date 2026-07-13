@@ -15,6 +15,7 @@ from agents_sync.tools.tool_definition import (
     KeyedMapSurfaceRecipe,
     PathAnchor,
     RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -70,6 +71,12 @@ GEMINI_CLI_TOOL = ToolDefinition(
             "gemini_cli_settings_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".gemini", "settings.json")),
+        ),
+        SkillFolderSurfaceRecipe(
+            "skill",
+            "gemini_cli_skills_dir",
+            markdown_surface_format(),
+            default_location=DefaultLocation(_HOME, (".gemini", "skills")),
         ),
     ),
 )

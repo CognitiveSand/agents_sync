@@ -14,6 +14,7 @@ from agents_sync.tools.tool_definition import (
     KeyedMapSurfaceRecipe,
     PathAnchor,
     RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -69,6 +70,12 @@ CODEX_TOOL = ToolDefinition(
             "codex_config_file",
             mcp_surface_format(("mcp_servers",), "toml", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".codex", "config.toml")),
+        ),
+        SkillFolderSurfaceRecipe(
+            "skill",
+            "codex_skills_dir",
+            markdown_surface_format(),
+            default_location=DefaultLocation(_HOME, (".codex", "skills")),
         ),
     ),
 )

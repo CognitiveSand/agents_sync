@@ -9,6 +9,7 @@ from agents_sync.tools.tool_definition import (
     DirectorySurfaceRecipe,
     KeyedMapSurfaceRecipe,
     PathAnchor,
+    SkillFolderSurfaceRecipe,
     ToolDefinition,
 )
 
@@ -52,6 +53,12 @@ CURSOR_TOOL = ToolDefinition(
             "cursor_mcp_servers_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".cursor", "mcp.json")),
+        ),
+        SkillFolderSurfaceRecipe(
+            "skill",
+            "cursor_skills_dir",
+            markdown_surface_format(),
+            default_location=DefaultLocation(_HOME, (".cursor", "skills")),
         ),
     ),
 )

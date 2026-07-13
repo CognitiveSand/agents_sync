@@ -1,6 +1,6 @@
 # Amendment 020 — Skill customization_type lands in the rebuild (FR-06)
 
-- status: proposed
+- status: applied (S23f SKILL.md scope; 0.7.56 — S23i aux-file half remains deferred)
 - branch: fix/size-explosion-hardening
 - date: 2026-07-13
 - relates to: FR-06 (skill matrix), NFR-03 (atomic visibility, folders),
@@ -26,8 +26,9 @@ governance change.
 ## Principle / decision
 
 The `skill` kind is a folder-per-artifact: `<root>/<slug>/SKILL.md`. Its identity
-is the folder name; its content is the `SKILL.md` body, which reuses the existing
-`markdown_frontmatter` dialect. **This amendment implements the SKILL.md-only
+is the embedded `pair_id` in the `SKILL.md` front-matter (exactly like an agent —
+the folder name is cosmetic); its content is the `SKILL.md` body, which reuses the
+existing `markdown_frontmatter` dialect. **This amendment implements the SKILL.md-only
 scope.** Auxiliary files inside a skill folder are a required capability
 (FR-06 + NFR-06 for real multi-file skills) but are deferred to a separately
 named step (see below). Until that step lands, a skill folder containing anything
@@ -84,16 +85,22 @@ Surgical, in `src_new/agents_sync/` only (never `src/`):
    union. Artifact path is `<default_location>/<slug>/SKILL.md`.
 2. **New read-spec + walker** in `read_tool_surfaces.py`: a
    `SkillFolderSurfaceSpec` that enumerates immediate child directories of the
-   skill root, derives the artifact slug from the **folder name**, and locates
-   `<slug>/SKILL.md`. If a `<slug>/` folder contains any entry other than
-   `SKILL.md` (extra file or subdirectory), raise
-   `SkillAuxiliaryFilesUnsupportedError` (fail loud) — do not read partially.
+   skill root and locates each `<slug>/SKILL.md` (artifact identity is the
+   embedded `pair_id`, exactly like an agent — the folder name is cosmetic). If a
+   `<slug>/` folder contains any entry other than `SKILL.md` (extra file or
+   subdirectory), a `_reject_skill_auxiliary_files` guard **raises**
+   `SkillAuxiliaryFilesUnsupportedError`, which the walker **catches per-folder
+   and converts to a `ParseFailure`** (freeze that one skill, name S23i in the
+   reason) — mirroring `_resolve_rules_imports_in`'s `RulesImportError` handling.
+   This is loud and reported but isolated (FR-02 systemic-only budget, amendment
+   012): one aux-bearing skill never crashes the poll and is never silently
+   truncated.
 3. **Registry wiring** in `tools/agentic_tools_registry.py` `surface_specs_for`:
    add the `isinstance(recipe, SkillFolderSurfaceRecipe)` branch → spec.
 4. **Dialect reuse**: the SKILL.md body uses the existing `markdown_frontmatter`
    dialect via `markdown_surface_format(...)`; no new dialect module unless a
    skill-specific field map is needed. `extract_id` for a skill surface returns
-   the folder-name slug.
+   the embedded `pair_id` (same as an agent — the folder name is cosmetic).
 5. **Per-tool recipes**: add a skill `SkillFolderSurfaceRecipe` (with the correct
    `default_location`) to `tools/claude.py`, `tools/codex.py`, `tools/cursor.py`,
    `tools/opencode.py`, `tools/gemini_cli.py`, and replace `surface_recipes=()`
@@ -120,8 +127,11 @@ One test per behaviour, failing before the code:
 3. **Slug from folder name** — a skill read from `<root>/<slug>/SKILL.md` yields
    artifact id `<slug>`; `extract_id` recovers it in isolation (FR-11).
 4. **Fail-loud aux guard** — a skill folder containing `SKILL.md` **and** an extra
-   file (or subdirectory) raises `SkillAuxiliaryFilesUnsupportedError`; assert the
-   message and that **nothing** is read/written for that folder.
+   file (or subdirectory) yields a `ParseFailure` observation freezing that skill
+   (the guard raises `SkillAuxiliaryFilesUnsupportedError`, caught → `ParseFailure`
+   like `RulesImportError`); assert the reason names S23i, that the skill does not
+   propagate, and that a **sibling** aux-free skill in the same root is unaffected
+   (per-artifact isolation).
 5. **Antigravity active** — after wiring, the registry produces skill
    surface-specs for `antigravity` and it counts as available when its skill root
    exists (was zero before).
