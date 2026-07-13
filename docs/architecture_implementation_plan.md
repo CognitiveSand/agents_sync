@@ -121,9 +121,15 @@
 - **Audit cadence:** the end-of-S20 two-auditor audit runs once, after the final S20
   sub-increment (before S21) — not between sub-increments. Each sub-increment still gets docs,
   red-first tests, full CI, and its own commit/`/bcp`.
-- **Phases D–G (S14–S25):** not started.
-- **Deferred, tracked here so they are not lost:** mcp `@import` resolution + framework
-  egress-guard *enforcement* → read phase S17–S19;
+- **Phases D–F (S14–S23) COMPLETE; S24 gate (`parser_bounds`) COMPLETE.** Phase G (S24–S25
+  cutover) is the remaining work. **Correction (2026-07-12 loose-ends audit):** the "Phase E/F
+  complete" claim overstated — three spec/quality gaps were wrongly marked done and must be closed
+  **before** the cutover deletes the old tree that carries them (see "Pre-cutover completion" and
+  `docs/audits/cutover_loose_ends_register_2026_07_12.md`).
+- **Deferred, tracked here so they are not lost:** mcp `@import` resolution → read phase S17
+  (**DONE** — `rules_import_resolution.py`); framework egress-guard *enforcement* (US-15) was
+  listed here as → S17–S19 but **did NOT land** (only the pure `detect_framework_specific`
+  predicate exists, zero callers) — **formally deferred post-cutover** (2026-07-12 decision);
   mcp secret policy → S18; per-tool field-spelling overrides (incl. opencode `enabled` inversion)
   + codex `env_http_headers`/`bearer_token_env_var` carriers → S20 (carriers ✓ increment 5); the
   per-tool inline `env_reference_style` (the `${env:NAME}`↔`${NAME}`↔`{env:NAME}` *style*
@@ -140,6 +146,49 @@
   judged AC-3 substantially met under NFR-13's "when applicable" qualifier and recommended clarifying
   the AC text rather than changing code → needs user approval of exact governance text. Each rebuild
   step also writes a markdown report under `docs/audits/` (untracked).
+
+### Cutover readiness (2026-07-12 loose-ends audit + decisions)
+
+Full register: `docs/audits/cutover_loose_ends_register_2026_07_12.md`. Five cross-checked
+investigations found that the rebuild is **not** yet feature-complete and that Phase G as
+originally written was mechanically infeasible (see the rewritten Phase G below).
+
+**Pre-cutover completion — gaps wrongly marked done; must land BEFORE the flip deletes the old
+tree that carries them:**
+- **Skill (directory-tree) dialect + skill recipes** for every `skill`-supporting tool (incl.
+  Antigravity, currently registered inert with `surface_recipes=()`). The `skill` kind never
+  landed in `src_new` — **`FR-06` requires it**, so dropping it would ship against spec. [decision:
+  carry]
+- **Rules-surface projection render restore.** `read_tool_surfaces` stashes the pre-`@import`
+  body in `per_tool_only[tool]["rules_source_body"]` but no render-side consumer restores it, so
+  projecting onto an `@import`-bearing rules file leaks a `rules_source_body:` front-matter key —
+  a latent correctness bug. Fix + add a projecting-onto-rules test. [decision: fix before cutover]
+- **Shared-file concurrency mitigation.** The rebuild is lock-free by design (proposal §9: atomic
+  writes + recompute), which covers torn writes and daemon-vs-daemon races (US-09 AC-3) but **not**
+  the daemon-vs-external-tool lost-update on a shared keyed-map file (e.g. `~/.claude.json`). Add a
+  re-read-verify-before-replace (or lock) on keyed-map RMW + a concurrent-external-writer test.
+  [decision: keep — the old `filesystem_lock.py` behaviour is not a safe drop]
+
+**Formally deferred POST-cutover (recorded so nothing is lost):**
+- **US-15 framework egress-guard enforcement** — predicate exists, enforcement does not; entangled
+  with US-16's unresolved marker/precedence design (needs a spike). Add a governance note to US-15
+  that enforcement is deferred. [decision: defer]
+- **v0.4 on-disk layout migration** (`scripts/migrate_v0.4.py`) — legacy one-time upgrade repair
+  the new recompute-from-disk model orphaned. Leave the script + the installer calls untouched;
+  revisit only if a direct-from-v0.4 upgrader need appears. [decision: defer until needed]
+- **Per-tool availability-status transition logging** — old `tool_status.py` logged
+  available/unavailable/disabled transitions; the new tree keeps only `count_available_tools` (the
+  two-tool guard's consumer). Dropped as YAGNI; document the reduced observability. [decision: drop]
+- **Smaller carried items:** `CanonicalDocument.from_dict` type-coercion hardening; gemini mcp
+  `oauth` auth-field spelling; reserved-name recipe data; extend-to-newly-available projection;
+  tied-mtime WARN; the `remove_artifact` shared-render-file guard arm (+ a guard test); JSONC
+  (deliberate YAGNI); a new-tree-boots-over-old-disk-layout upgrade-seam e2e test; a
+  `test_marker_discipline` successor for the folded suite.
+
+**Old-track amendments to close as historical records (per no-rm):** `015-rename-propagation`
+(substance **realized in the rebuild** — reconcile_known S6b rename + executor `rename_artifact` +
+S8b `RejectCollision`; verify US-04 AC coverage in the behavioural conformance set) and
+`016-simplify-full-code` (**superseded** — the rebuild replaces the old god-modules wholesale).
 
 ---
 
@@ -165,24 +214,48 @@ independently and is "done" only when spotless. See the skill for the full rules
 The greenfield build lives in **`src_new/`** (package name unchanged: `agents_sync`),
 with its unit tests in **`tests_new/`**. The existing `src/agents_sync/` keeps
 running untouched, so the conformance suite stays green throughout. Isolation:
-the default `pytest` run is pinned to `tests/` (`testpaths`), and `tests_new/` runs
-as its own stage whose `conftest.py` puts `src_new/` first on `sys.path` (the
-editable install is a plain `.pth`, so this wins cleanly). `scripts/ci.sh` runs
-both scopes plus `mypy --strict` over `src_new/`.
+the default `pytest` run is pinned to `tests/` (`testpaths` in `pyproject.toml`),
+and `tests_new/` runs as its own stage via `pytest -c pytest_new.ini`, whose
+`pythonpath = src_new` puts `src_new/` first on `sys.path` (the editable install
+is a plain `.pth` that appends `src`, so the prepend wins cleanly). `scripts/ci.sh`
+runs both scopes plus `mypy --strict` over `src_new/`.
 
-**Cutover (S24–S25) is a directory rename**, not a code rename: delete the old
-`src/agents_sync/`, move `src_new/agents_sync/` → `src/agents_sync/`, fold
-`tests_new/` into `tests/`. Because the package name never changes, no internal
-import is rewritten (honouring the no-bulk-rename rule).
+**Cutover (S24–S25) is a directory rename for the *production* code, but NOT for
+the tests.** For `src_new`'s own code the package name never changes, so no internal
+import is rewritten (honouring the no-bulk-rename rule). The **conformance suite is a
+different story and is the bulk of Phase G**: 59 of 73 `tests/` files import old-tree
+module names absent from `src_new` (only `parser_bounds` survives the rename), and 40
+of them ride on `agents_sync.sync.Syncer` — a class with no new-tree equivalent (the
+new API is functional: `sync_once(...)`). So the flip cannot be an in-place `tests/`
+repoint; it requires a `Syncer`-shaped adapter (S24) and, at S25: fixing
+`pyproject.toml`'s `[project.scripts] agents-sync = "agents_sync.cli:main"` →
+`command_line_interface:main`, resolving the `test_parser_bounds.py` collision (present
+in both suites) and the `tests/` package structure (`__init__.py` + relative imports)
+that `tests_new/` lacks, and retiring the old-internal unit tests whose coverage
+already lives in `tests_new/`.
 
 ## Safety net: the conformance suite
 
-The existing behavioural tests (`test_e2e_sync`, `test_round_trip`,
-`test_cross_adapter_adoption_matrix`, `test_antigravity_three_way`,
-`test_first_boot_reconciliation`, the per-tool `test_*_io`, the size-explosion
-regressions, …) are the **conformance suite**. They encode the user-visible
-behaviour and must stay green through every step and across the cutover. New
-per-step unit tests are additive; the conformance suite is the invariant.
+The `tests/` suite is **two kinds of test**, and only one kind is a cross-cutover
+invariant (2026-07-12 audit corrected the earlier framing):
+
+- **Behavioural conformance (the true invariant, ~40 files)** — tests that drive a
+  high-level API (`Syncer`/`make_syncer`, `cli.main`) and assert user-visible outcomes:
+  `test_e2e_sync`, `test_cross_adapter_adoption_matrix`, `test_antigravity_three_way`,
+  `test_first_boot_reconciliation`, `test_rename`, `test_two_tool_guard`,
+  `test_size_explosion_regression`, … These are **repointed** to the new pipeline via the
+  S24 `Syncer`-shaped adapter (store-read imports `canonical`→`canonical_store`,
+  `state`→`sync_state_store`) and must stay green across the flip. They are the invariant.
+- **Old-internal unit tests (~27 files) — NOT cross-cutover invariants.** `test_round_trip`
+  (imports `claude_io`), the per-tool `test_*_io`, `test_canonical`, `test_discovery_enumerator`,
+  `test_markdown_yaml_metadata_block`, etc. test old modules that do not exist in `src_new`.
+  Their coverage is already carried by `tests_new/` equivalents (`test_markdown_frontmatter`,
+  `test_read_tool_surfaces`, `test_canonical_document/_store`, the `test_mcp_*` family, …). They
+  cannot "stay green across the cutover" — they **retire with their modules at S25**.
+
+The default `tests/` run stays green against the **old** `src/` throughout S24 (nothing is
+deleted); the behavioural conformance is proven against `src_new` in a parallel stage; only at
+S25 does the flip fold the two together.
 
 ---
 
@@ -250,14 +323,28 @@ the superseded modules retired. The conformance suite holds throughout.
 | S22 | Daemon + CLI | `poll_daemon`, `command_line_interface` | systemic-only failure budget (FR-02), GC tick, latency (NFR-02); export/import/run; exit-code matrix (NFR-10) |
 | S23 | Portable library | `portable_library`, `canonical_store` | **split a–e:** S23a canonical-store `metadata` block (`last_modified`/`generation`, content-change-stamped — glossary + amendment 008); S23b export; S23c import core (`last_modified_wins`); S23d cross-identity merge + preview/`--force`; S23e CLI export/import wiring (US-12, FR-12/13/15/16) |
 
+### Phase F-completion — close the gaps wrongly marked done (BEFORE cutover)
+
+The 2026-07-12 loose-ends audit found the rebuild is not feature-complete; these must land
+before S25 deletes the old tree that carries them. Each goes through the normal per-step gate.
+
+| # | Step | Touches | Spec / test focus |
+|---|---|---|---|
+| S23f | Skill (directory-tree) dialect + skill recipes | new `dialects/skill_folder` (or equivalent); `tools/*` skill recipes; `tools/antigravity` | **`FR-06`**: a managed `skill` folder (`<slug>/SKILL.md` + aux files) round-trips across every `skill`-supporting tool; Antigravity gains active recipes (was inert); cross-adapter skill matrix. Closes the missing artifact kind |
+| S23g | Rules-surface projection render restore | `dialects/field_mapping`, `execute_sync_plan/content_intents` | render restores the pre-`@import` `rules_source_body` instead of leaking it as a front-matter key; projecting-onto-an-`@import`-bearing-rules-file test (currently absent) |
+| S23h | Shared-file concurrency mitigation | `atomic_file_writer` / keyed-map write path | re-read-verify-before-replace (or lock) so a daemon RMW on a shared keyed-map file (`~/.claude.json`) does not silently clobber a concurrent external-tool write; concurrent-external-writer regression test. (Restores the old `filesystem_lock` guarantee the lock-free design left uncovered.) |
+
 ### Phase G — Cutover & retirement
 | # | Step | Touches | Spec / test focus |
 |---|---|---|---|
-| S24 | Cut the daemon over | `poll_daemon` `sync_once` = read → plan → execute | the **full conformance suite** stays green against the new pipeline. **Gate:** `parser_bounds` size-explosion hardening (deferred from S9 — bounded YAML composer, front-matter scan window, text-size cap) MUST be in place; the size-explosion regression tests in the conformance suite enforce it |
-| S25 | Retire superseded modules | delete old discovery/adoption/sync/etc. | full suite green; measure LOC vs target (~6–7k); architecture.md reflects the final map |
+| S24 | **Prove behaviour against `src_new` (parallel stage, nothing deleted)** | new `Syncer`-shaped conformance adapter over `sync_once`/`make_periodic_poll`/`command_line_interface`; the ~40 behavioural conformance tests | Build the adapter: translate the flat config dict → `resolved_paths` + `tool_definitions` + `SyncState`; expose `.sync_once()`, `.tool_root()`, `.state_dir`, `read_state`/`list_state` over `sync_state_store`. Port the behavioural conformance tests to drive `src_new` as a **new stage** (`pythonpath=src_new`), store-read imports repointed. Default `tests/` stays green on old `src`. Includes `test_size_explosion_regression` repointed (finally enforcing the `src_new` gate). **Large — split into batches** (adapter+e2e/reconcile → per-tool round-trips incl. skills → portable library → daemon/CLI/exit-codes). **Gate:** `parser_bounds` ✓ (0.7.55) |
+| S25 | **Flip + retire** | `pyproject.toml`, `src/` ← `src_new/`, `tests/`, `pytest_new.ini` | Fix `[project.scripts] … cli:main` → `command_line_interface:main`; `mv src_new/agents_sync → src/agents_sync`, delete old modules; retire the ~27 old-internal unit tests (coverage in `tests_new/`) + the superseded old behavioural copies; resolve the `test_parser_bounds.py` collision + give the folded suite its package structure; collapse the two pytest configs into one. Full (single-tree) suite green; measure LOC vs ~6–7k; update `docs/architecture.md` + `agentic_tool_integration_protocol.md`. Leave `migrate_v0.4.py` + installers untouched (v0.4 migration deferred-until-needed) |
 
 Steps may be split further if any one cannot pass the gate as a single increment;
-they may not be merged (each must remain independently shippable).
+they may not be merged (each must remain independently shippable). The **deferred
+post-cutover** items (US-15 egress enforcement, v0.4 migration, availability-status
+logging, and the smaller carried items) are tracked in "Cutover readiness" above and in
+`docs/audits/cutover_loose_ends_register_2026_07_12.md`.
 
 ---
 
