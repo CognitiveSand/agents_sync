@@ -155,10 +155,13 @@ originally written was mechanically infeasible (see the rewritten Phase G below)
 
 **Pre-cutover completion — gaps wrongly marked done; must land BEFORE the flip deletes the old
 tree that carries them:**
-- **Skill (directory-tree) dialect + skill recipes** for every `skill`-supporting tool (incl.
+- **Skill (`SKILL.md`) dialect + skill recipes** for every `skill`-supporting tool (incl.
   Antigravity, currently registered inert with `surface_recipes=()`). The `skill` kind never
   landed in `src_new` — **`FR-06` requires it**, so dropping it would ship against spec. [decision:
-  carry]
+  carry — **S23f**, SKILL.md-only scope; amendment 020]. Auxiliary files inside a skill folder are
+  a separate deferred step (**S23i**, below); until S23i lands, a skill folder carrying anything
+  beyond its `SKILL.md` is rejected loudly (`SkillAuxiliaryFilesUnsupportedError`), never silently
+  truncated.
 - **Rules-surface projection render restore.** `read_tool_surfaces` stashes the pre-`@import`
   body in `per_tool_only[tool]["rules_source_body"]` but no render-side consumer restores it, so
   projecting onto an `@import`-bearing rules file leaks a `rules_source_body:` front-matter key —
@@ -168,6 +171,12 @@ tree that carries them:**
   the daemon-vs-external-tool lost-update on a shared keyed-map file (e.g. `~/.claude.json`). Add a
   re-read-verify-before-replace (or lock) on keyed-map RMW + a concurrent-external-writer test.
   [decision: keep — the old `filesystem_lock.py` behaviour is not a safe drop]
+- **S23i — Directory-tree skill auxiliary-file propagation.** The other half of the skill kind:
+  `CanonicalDocument.auxiliary_files`, a directory-tree surface location, and atomic folder writes
+  that copy aux files verbatim (NFR-03/NFR-06). Deferred because no multi-file skills are in play
+  today; S23f's fail-loud guard prevents silent data loss until it lands. **Conditional pre-cutover
+  gate:** must land before the flip if any skill-supporting tool needs a multi-file skill synced.
+  [decision: defer — conditional; amendment 020]
 
 **Formally deferred POST-cutover (recorded so nothing is lost):**
 - **US-15 framework egress-guard enforcement** — predicate exists, enforcement does not; entangled
@@ -330,9 +339,10 @@ before S25 deletes the old tree that carries them. Each goes through the normal 
 
 | # | Step | Touches | Spec / test focus |
 |---|---|---|---|
-| S23f | Skill (directory-tree) dialect + skill recipes | new `dialects/skill_folder` (or equivalent); `tools/*` skill recipes; `tools/antigravity` | **`FR-06`**: a managed `skill` folder (`<slug>/SKILL.md` + aux files) round-trips across every `skill`-supporting tool; Antigravity gains active recipes (was inert); cross-adapter skill matrix. Closes the missing artifact kind |
+| S23f | Skill (`SKILL.md`) recipes + read-spec (amendment 020) | `tools/tool_definition` (new `SkillFolderSurfaceRecipe`); `read_tool_surfaces` (new `SkillFolderSurfaceSpec` walker + `SkillAuxiliaryFilesUnsupportedError`); `tools/agentic_tools_registry`; `tools/{claude,codex,cursor,opencode,gemini_cli,antigravity}` | **`FR-06`**: a managed `skill` folder's `SKILL.md` (reusing the `markdown_frontmatter` dialect) round-trips across every `skill`-supporting tool; slug derived from the folder name; Antigravity gains an active recipe (was inert); cross-adapter skill matrix. **Aux files out of scope → S23i**: a folder carrying anything beyond `SKILL.md` fails loud, never silently truncated |
 | S23g | Rules-surface projection render restore | `dialects/field_mapping`, `execute_sync_plan/content_intents` | render restores the pre-`@import` `rules_source_body` instead of leaking it as a front-matter key; projecting-onto-an-`@import`-bearing-rules-file test (currently absent) |
 | S23h | Shared-file concurrency mitigation | `atomic_file_writer` / keyed-map write path | re-read-verify-before-replace (or lock) so a daemon RMW on a shared keyed-map file (`~/.claude.json`) does not silently clobber a concurrent external-tool write; concurrent-external-writer regression test. (Restores the old `filesystem_lock` guarantee the lock-free design left uncovered.) |
+| S23i | Directory-tree skill auxiliary-file propagation (amendment 020; **conditional pre-cutover**) | `domain_model/canonical_document` (`auxiliary_files`); `domain_model/tool_surface` (directory-tree location); `read_tool_surfaces` + `execute_sync_plan` (folder digest + atomic folder write, verbatim aux copy) | Multi-file skills round-trip byte-for-byte (NFR-06) with atomic folder visibility (NFR-03). Deferred until a multi-file skill needs syncing; S23f's fail-loud guard holds the line until then |
 
 ### Phase G — Cutover & retirement
 | # | Step | Touches | Spec / test focus |
