@@ -31,10 +31,17 @@ _ENCODINGS = frozenset({TEXT_ENCODING, BASE64_ENCODING})
 
 @dataclass(frozen=True)
 class AuxiliaryFile:
-    """One auxiliary file's bytes, encoded for canonical (JSON) storage."""
+    """One auxiliary file's bytes, encoded for canonical (JSON) storage.
+
+    ``executable`` records whether the source file carried a POSIX execute bit. A
+    skill that ships a helper script is only useful if the script stays runnable
+    on the tools it is projected onto (US-01 AC-10), and mode is not recoverable
+    from content.
+    """
 
     content: str
     encoding: str = TEXT_ENCODING
+    executable: bool = False
 
     def __post_init__(self) -> None:
         if self.encoding not in _ENCODINGS:
@@ -44,12 +51,12 @@ class AuxiliaryFile:
             )
 
     @classmethod
-    def from_bytes(cls, raw: bytes) -> AuxiliaryFile:
+    def from_bytes(cls, raw: bytes, *, executable: bool = False) -> AuxiliaryFile:
         """Encode ``raw`` for storage, preferring readable text over base64."""
         try:
-            return cls(raw.decode("utf-8"), TEXT_ENCODING)
+            return cls(raw.decode("utf-8"), TEXT_ENCODING, executable)
         except UnicodeDecodeError:
-            return cls(base64.b64encode(raw).decode("ascii"), BASE64_ENCODING)
+            return cls(base64.b64encode(raw).decode("ascii"), BASE64_ENCODING, executable)
 
     def to_bytes(self) -> bytes:
         """The original bytes. Inverse of :meth:`from_bytes`."""
@@ -70,7 +77,15 @@ class AuxiliaryFile:
         content = data.get("content")
         if not isinstance(content, str):
             raise ValueError("auxiliary file entry missing string 'content'")
-        return cls(content=content, encoding=str(data.get("encoding", TEXT_ENCODING)))
+        return cls(
+            content=content,
+            encoding=str(data.get("encoding", TEXT_ENCODING)),
+            executable=bool(data.get("executable", False)),
+        )
 
-    def to_dict(self) -> dict[str, str]:
-        return {"content": self.content, "encoding": self.encoding}
+    def to_dict(self) -> dict[str, str | bool]:
+        return {
+            "content": self.content,
+            "encoding": self.encoding,
+            "executable": self.executable,
+        }

@@ -351,7 +351,14 @@ before S25 deletes the old tree that carries them. Each goes through the normal 
 | S23h | Shared-file concurrency mitigation | `atomic_file_writer` / keyed-map write path | re-read-verify-before-replace (or lock) so a daemon RMW on a shared keyed-map file (`~/.claude.json`) does not silently clobber a concurrent external-tool write; concurrent-external-writer regression test. (Restores the old `filesystem_lock` guarantee the lock-free design left uncovered.) |
 | S23i ✓ (0.7.58) | Directory-tree skill auxiliary-file propagation (amendments 020 + 021; gate fired 2026-08-04) | NEW `domain_model/auxiliary_file` (text-else-base64 codec) + `skill_auxiliary_files` (the folder↔map gateway); `domain_model/canonical_document` (`auxiliary_files`); `read_tool_surfaces` (folder walk + composite digest); `execute_sync_plan/_shared` (NEW `write_surface_content` — one folder-aware writer for all four write sites); `identity_intents` (a renamed skill retires its whole old folder); `parser_bounds` (`read_bytes_bounded`, file-count + folder-byte caps) | Multi-file skills round-trip byte-for-byte (NFR-06) with atomic folder visibility via the existing `replace_directory_atomic` (NFR-03), and survive export→import (US-12) — the portable library carries them for free, since it ships canonical documents. Replaces S23f's `SkillAuxiliaryFilesUnsupportedError` with real support. Binary aux (PNG/PDF) stored base64, text stored readable. OS sidecars (`.DS_Store`, `._*`) excluded, preserving legacy-tree behaviour. Aux content is body-like and NOT secret-scanned (NFR-15 residual — owner decision; see the register). **A projection now compares the whole folder, not just the rendered text**: a target whose `SKILL.md` matches but whose aux files are missing is rewritten, not skipped as current — the subtle half of the reported defect |
 
-### Phase G-gate — cross-tool creation does not exist yet. **BLOCKS S24.**
+### Phase G-gate — behaviour gaps that block S24
+
+An **AC parity sweep** (2026-08-04) drove 14 user-visible behaviours end-to-end through
+`sync_once`; **12 pass**. It was run because two "complete" claims had already proved wrong, and
+because unit coverage cannot answer whether a component is *wired*. Full method and results in
+`docs/audits/cutover_loose_ends_register_2026_07_12.md`. The core loop is sound; three items block.
+
+**G-gate-1 — cross-tool creation does not exist. BLOCKS S24.**
 
 Found 2026-08-04 while writing S23i's end-to-end tests, and unrelated to skills: the rebuild
 propagates edits *among* tools that already hold an artifact but never *creates* one on a tool that
@@ -366,6 +373,19 @@ behaviour against the rebuild* — has nothing to prove until it lands. Needs a 
 targets derived from the tool registry (every tool supporting the kind with a resolved root) rather
 than from observations, including minting target paths for tools with no surface yet. **Not
 scheduled here — needs an owner decision on scope and sequencing.** See the register entry.
+
+**G-gate-2 — US-11 AC-3 re-extend to a returning tool.** A tool whose root vanishes is correctly
+not a removal source, but when it returns the artifact is never re-projected onto it. The same
+observed-surfaces root cause as G-gate-1, and fixed by the same change; recorded separately because
+it is a distinct user-visible promise (US-11 AC-3).
+
+**G-gate-3 — FR-07 global rules do not sync across tools. Regression vs the legacy tree.**
+A whole-file rules surface (`AGENTS.md`, no front matter) parses to `name=''`; a directory rules
+surface (cursor `*.mdc`) parses to its declared name. Reconciliation keys on `(kind, slug(name))`,
+so they never join — the sweep saw two rules artifacts, one per tool, and edits never crossing. The
+legacy tree reconciles the same input into one artifact across four tools. Rules are the one kind
+where a tool holds at most one artifact, so identity cannot rest on a name the format does not
+carry; this needs a reconciliation rule for the kind, not a naming patch. Its own step.
 
 ### Phase G — Cutover & retirement
 | # | Step | Touches | Spec / test focus |

@@ -181,6 +181,32 @@ def test_a_multi_file_skill_survives_export_then_import(tmp_path: Path) -> None:
     assert restored.auxiliary_files["logo.png"].to_bytes() == BINARY_CONTENT
 
 
+def test_an_executable_auxiliary_file_stays_executable(tmp_path: Path) -> None:
+    """US-01 AC-10: a skill that ships a helper script is only useful if the script
+    stays runnable where it lands, and mode is not recoverable from content."""
+    state_dir, claude_skills, cursor_skills, resolved = _skill_workspace(tmp_path)
+    claude_folder, _cursor_folder = _plant_on_both(claude_skills, cursor_skills)
+    state = _sync_until_settled(state_dir, resolved, SyncState())
+
+    script = claude_folder / "run.sh"
+    script.write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+    script.chmod(0o755)
+    _sync_until_settled(state_dir, resolved, state)
+
+    projected = cursor_skills / "demo" / "run.sh"
+    assert projected.stat().st_mode & 0o111, "the propagated script lost its execute bit"
+
+
+def test_a_non_executable_auxiliary_file_is_not_made_executable(tmp_path: Path) -> None:
+    # The flag must travel per file, not be applied to the whole folder.
+    state_dir, claude_skills, cursor_skills, resolved = _skill_workspace(tmp_path)
+    _plant_on_both(claude_skills, cursor_skills)
+    _sync_until_settled(state_dir, resolved, SyncState())
+
+    projected = cursor_skills / "demo" / AUXILIARY_RELATIVE_PATH
+    assert not projected.stat().st_mode & 0o111
+
+
 def test_a_settled_multi_file_skill_produces_no_further_writes(tmp_path: Path) -> None:
     # NFR-05: the recorded digest describes the whole folder, so a second poll over
     # an unchanged multi-file skill is a no-op rather than an endless rewrite.

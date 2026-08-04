@@ -36,6 +36,9 @@ SKILL_FILENAME = "SKILL.md"
 _IGNORED_TREE_NAMES = frozenset({".DS_Store"})
 _IGNORED_TREE_PREFIXES = ("._",)
 
+_EXECUTE_BITS = 0o111  # user/group/other execute
+_READ_BITS = 0o444  # user/group/other read; >> 2 maps each read bit to its execute bit
+
 
 def is_ignored_tree_entry(name: str) -> bool:
     """OS sidecar metadata that is per-machine state, never artifact content."""
@@ -70,7 +73,9 @@ def read_auxiliary_files(skill_dir: Path) -> dict[str, AuxiliaryFile]:
                 f"skill folder {skill_dir.name!r}: auxiliary content exceeds "
                 f"MAX_SKILL_FOLDER_BYTES ({MAX_SKILL_FOLDER_BYTES} bytes)"
             )
-        auxiliary_files[relative.as_posix()] = AuxiliaryFile.from_bytes(raw)
+        auxiliary_files[relative.as_posix()] = AuxiliaryFile.from_bytes(
+            raw, executable=bool(path.stat().st_mode & _EXECUTE_BITS)
+        )
     return auxiliary_files
 
 
@@ -92,6 +97,12 @@ def populate_skill_folder(
         destination = folder / Path(relative_path)
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(auxiliary.to_bytes())
+        if auxiliary.executable:
+            # US-01 AC-10: a skill's helper script must stay runnable where it lands.
+            # Widen by the execute bits the file's read bits already allow, so the
+            # target respects the receiving machine's umask rather than forcing 0o755.
+            mode = destination.stat().st_mode
+            destination.chmod(mode | ((mode & _READ_BITS) >> 2))
 
 
 def auxiliary_files_digest(auxiliary_files: dict[str, AuxiliaryFile]) -> str:
