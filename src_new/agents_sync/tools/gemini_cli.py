@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from agents_sync.domain_model.tool_surface import McpSpellingRecipe
 from agents_sync.tools._shared_formats import (
+    GLOBAL_RULES_ARTIFACT_NAME,
     markdown_surface_format,
     mcp_surface_format,
     structured_text_surface_format,
@@ -65,6 +66,7 @@ GEMINI_CLI_TOOL = ToolDefinition(
             ("GEMINI.md",),
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".gemini",)),
+            default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
         KeyedMapSurfaceRecipe(
             "mcp_server",

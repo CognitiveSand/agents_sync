@@ -378,13 +378,14 @@ def test_a_missing_keyed_map_file_yields_no_observations(tmp_path: Path) -> None
 # --- rules filename precedence (FR-10) ----------------------------------------------
 
 
-def _rules_spec(directory: Path) -> RulesFileSurfaceSpec:
+def _rules_spec(directory: Path, default_artifact_name: str = "") -> RulesFileSurfaceSpec:
     return RulesFileSurfaceSpec(
         tool="claude",
         kind="rules",
         directory=directory,
         candidate_filenames=("AGENTS.md", "CLAUDE.md"),
         surface_format=_MARKDOWN,
+        default_artifact_name=default_artifact_name,
     )
 
 
@@ -409,6 +410,41 @@ def test_an_unlisted_filename_is_never_observed_as_rules(tmp_path: Path) -> None
     (tmp_path / "RULES.md").write_text("not on the declared list\n")
 
     assert read_tool_surfaces((_rules_spec(tmp_path),)) == ()
+
+
+# --- global-rules naming (the whole-file family declares no name) --------------------
+
+
+def test_a_nameless_rules_file_takes_the_recipe_default_name(tmp_path: Path) -> None:
+    # A plain AGENTS.md carries no front matter, so the format supplies no name. The
+    # name is what the artifact reconciles and projects under, so it must be a real
+    # identity rather than slugify_name's placeholder.
+    (tmp_path / "AGENTS.md").write_text("Be terse.\n")
+
+    [observation] = read_tool_surfaces((_rules_spec(tmp_path, "global"),))
+
+    assert isinstance(observation.parsed, CanonicalDocument)
+    assert observation.parsed.name == "global"
+
+
+def test_a_rules_file_that_declares_a_name_keeps_it(tmp_path: Path) -> None:
+    # The default fills a gap; it never overrides what the user wrote.
+    (tmp_path / "AGENTS.md").write_text("---\nname: house-style\n---\nBe terse.\n")
+
+    [observation] = read_tool_surfaces((_rules_spec(tmp_path, "global"),))
+
+    assert isinstance(observation.parsed, CanonicalDocument)
+    assert observation.parsed.name == "house-style"
+
+
+def test_a_recipe_without_a_default_name_leaves_the_name_empty(tmp_path: Path) -> None:
+    # Only the whole-file rules family declares one; every other surface names itself.
+    (tmp_path / "AGENTS.md").write_text("Be terse.\n")
+
+    [observation] = read_tool_surfaces((_rules_spec(tmp_path),))
+
+    assert isinstance(observation.parsed, CanonicalDocument)
+    assert observation.parsed.name == ""
 
 
 # --- @import resolution (S17 increment 2, US-15) -------------------------------------

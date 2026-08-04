@@ -379,7 +379,15 @@ not a removal source, but when it returns the artifact is never re-projected ont
 observed-surfaces root cause as G-gate-1, and fixed by the same change; recorded separately because
 it is a distinct user-visible promise (US-11 AC-3).
 
-**G-gate-3 — global-rules identity: a whole-file rules artifact has no name.**
+**G-gate-3 — global-rules identity. ✓ CLOSED (0.7.59, amendment 022):** the whole-file rules
+recipes now declare `default_artifact_name = "global"` as tool data, so the artifact has a real
+identity instead of the placeholder slug, and the value matches what 0.7-synced installs already
+hold on disk (no rename, no field rewrite at cutover). **No cross-family reconciliation machinery
+was written** (owner decision): a directory rules artifact declares its own name in front matter and
+so names itself through the ordinary path. The parity sweep's FR-07 probe now passes. The
+description of the original defect is kept below as the record.
+
+**G-gate-3 (original finding) — a whole-file rules artifact has no name.**
 (The sweep's first reading — "rules do not sync across tools" — was too broad; corrected here and in
 the register.) Global rules **do** sync across the whole-file family (claude ↔ codex ↔ opencode).
 The defect is that they do so by accident: a plain `AGENTS.md` carries no name, so it parses to

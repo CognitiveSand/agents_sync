@@ -15,6 +15,15 @@ from agents_sync.domain_model.tool_surface import McpSpellingRecipe, SurfaceForm
 _COMMON_KNOWN_FIELDS = (("name", "name"), ("description", "description"))
 _ID_FIELD = "pair_id"
 
+GLOBAL_RULES_ARTIFACT_NAME = "global"
+"""The name a whole-file global-rules artifact takes when its file declares none.
+
+Shared by every tool in that family, so the one rules artifact a user keeps carries
+the same identity wherever it lands. The value matches what installs synced by the
+0.7 daemon already hold on disk (``name: global`` in their ``AGENTS.md``), so the
+cutover neither renames the artifact nor rewrites the field.
+"""
+
 
 def markdown_surface_format(
     extra_known_fields: tuple[tuple[str, str], ...] = (),

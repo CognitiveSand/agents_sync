@@ -62,13 +62,17 @@ class KeyedMapSurfaceSpec:
 @dataclass(frozen=True)
 class RulesFileSurfaceSpec:
     """FR-10: the highest-precedence present filename is THE rules surface;
-    a filename not on the declared list is never observed."""
+    a filename not on the declared list is never observed.
+
+    ``default_artifact_name`` names an artifact whose file declares no name — the
+    normal case here, since a whole-file rules document is plain markdown."""
 
     tool: str
     kind: str
     directory: Path
     candidate_filenames: tuple[str, ...]
     surface_format: SurfaceFormat
+    default_artifact_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -189,8 +193,26 @@ def _observe_rules_file(
             # No reuse cache for rules: imports must re-resolve every poll (an edit
             # behind the pointer is content), and there is at most one rules file
             # per tool, so the saving would be nil anyway.
-            return [_resolve_rules_imports_in(_observe_file(surface, _NO_HISTORY), spec)]
+            observed = _name_unnamed_artifact(_observe_file(surface, _NO_HISTORY), spec)
+            return [_resolve_rules_imports_in(observed, spec)]
     return []
+
+
+def _name_unnamed_artifact(
+    observation: SurfaceObservation, spec: RulesFileSurfaceSpec
+) -> SurfaceObservation:
+    """Give a nameless whole-file rules artifact the name its recipe declares.
+
+    A plain ``AGENTS.md`` carries no front matter, so it parses with an empty name —
+    and an empty name slugifies to a placeholder, which would be the slug the
+    artifact reconciles and projects under. Naming it here, at the one seam that
+    knows the recipe, keeps the dialect free of a rules-specific constant. A file
+    that *does* declare a name keeps it; nothing overrides the user.
+    """
+    parsed = observation.parsed
+    if isinstance(parsed, ParseFailure) or parsed.name or not spec.default_artifact_name:
+        return observation
+    return replace(observation, parsed=replace(parsed, name=spec.default_artifact_name))
 
 
 def _resolve_rules_imports_in(

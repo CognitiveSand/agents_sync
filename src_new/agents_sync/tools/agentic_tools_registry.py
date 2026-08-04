@@ -86,6 +86,7 @@ def surface_specs_for(
                     resolved_path,
                     recipe.candidate_filenames,
                     recipe.surface_format,
+                    recipe.default_artifact_name,
                 )
             )
         elif isinstance(recipe, SkillFolderSurfaceRecipe):

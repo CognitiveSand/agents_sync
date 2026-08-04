@@ -66,13 +66,23 @@ class KeyedMapSurfaceRecipe:
 
 @dataclass(frozen=True)
 class RulesFileSurfaceRecipe:
-    """The whole-file global-rules family: an ordered filename precedence (FR-10)."""
+    """The whole-file global-rules family: an ordered filename precedence (FR-10).
+
+    ``default_artifact_name`` is the name an artifact on this surface takes when the
+    file declares none. A whole-file rules document is plain markdown — ``AGENTS.md``
+    carries no front matter — so unlike every other surface its format supplies no
+    name, and without a default it would fall through to ``slugify_name``'s
+    placeholder slug. The name is what the artifact is reconciled and projected
+    under, so it must be a real identity, and it belongs here as recipe data rather
+    than as a constant inside the dialect (tools-as-data, NFR-11).
+    """
 
     kind: str
     config_key: str
     candidate_filenames: tuple[str, ...]
     surface_format: SurfaceFormat
     default_location: DefaultLocation | None
+    default_artifact_name: str = ""
 
 
 @dataclass(frozen=True)

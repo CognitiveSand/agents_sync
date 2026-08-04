@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from agents_sync.domain_model.tool_surface import McpSpellingRecipe
-from agents_sync.tools._shared_formats import markdown_surface_format, mcp_surface_format
+from agents_sync.tools._shared_formats import (
+    GLOBAL_RULES_ARTIFACT_NAME,
+    markdown_surface_format,
+    mcp_surface_format,
+)
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
     DirectorySurfaceRecipe,
@@ -56,6 +60,7 @@ CLAUDE_TOOL = ToolDefinition(
             ("AGENTS.md", "CLAUDE.md"),
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".claude",)),
+            default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
         KeyedMapSurfaceRecipe(
             "mcp_server",

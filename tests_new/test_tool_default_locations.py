@@ -13,8 +13,15 @@ import dataclasses
 
 import pytest
 
+from agents_sync.domain_model.artifact_naming import slugify_name
+from agents_sync.tools._shared_formats import GLOBAL_RULES_ARTIFACT_NAME
 from agents_sync.tools.agentic_tools_registry import ALL_TOOL_DEFINITIONS, tool_definition
-from agents_sync.tools.tool_definition import DefaultLocation, PathAnchor, SurfaceRecipe
+from agents_sync.tools.tool_definition import (
+    DefaultLocation,
+    PathAnchor,
+    RulesFileSurfaceRecipe,
+    SurfaceRecipe,
+)
 
 HOME = PathAnchor.HOME
 CONFIG_ROOT = PathAnchor.CONFIG_ROOT
@@ -86,6 +93,27 @@ def test_each_recipe_declares_its_documented_default_location(config_key: str) -
         _RECIPES_BY_CONFIG_KEY[config_key].default_location
         == (EXPECTED_DEFAULT_LOCATIONS[config_key])
     )
+
+
+def test_every_whole_file_rules_recipe_declares_the_same_artifact_name() -> None:
+    """The whole-file rules family carries no name in its format, so each recipe
+    supplies one. They must agree, or the single global-rules artifact a user keeps
+    would reconcile as several — one per spelling — and stop crossing tools."""
+    declared = {
+        (definition.name, recipe.default_artifact_name)
+        for definition in ALL_TOOL_DEFINITIONS
+        for recipe in definition.surface_recipes
+        if isinstance(recipe, RulesFileSurfaceRecipe)
+    }
+    assert declared, "no whole-file rules recipes found"
+    assert {name for _tool, name in declared} == {GLOBAL_RULES_ARTIFACT_NAME}, declared
+
+
+def test_the_global_rules_name_slugifies_to_itself_not_a_placeholder() -> None:
+    # The bug this closes: an empty name slugified to the placeholder, so global
+    # rules would have projected onto a directory surface as `converted.mdc`.
+    assert slugify_name(GLOBAL_RULES_ARTIFACT_NAME) == GLOBAL_RULES_ARTIFACT_NAME
+    assert slugify_name("") != GLOBAL_RULES_ARTIFACT_NAME
 
 
 def test_default_location_is_immutable() -> None:
