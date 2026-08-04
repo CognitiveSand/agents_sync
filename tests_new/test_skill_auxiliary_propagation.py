@@ -212,7 +212,7 @@ def test_a_settled_multi_file_skill_produces_no_further_writes(tmp_path: Path) -
     # an unchanged multi-file skill is a no-op rather than an endless rewrite.
     state_dir, claude_skills, _cursor, resolved = _skill_workspace(tmp_path)
     _plant_skill(claude_skills)
-    state = _sync(state_dir, resolved, SyncState())
+    state = _sync_until_settled(state_dir, resolved, SyncState())
 
     result, _observations, _state = sync_once(
         state_dir, resolved, state, {}, tool_definitions=_TWO_TOOL_DEFINITIONS

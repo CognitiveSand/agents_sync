@@ -23,8 +23,14 @@ from agents_sync.domain_model.observation import SurfaceObservation
 from agents_sync.domain_model.plan.compute_sync_plan import compute_sync_plan
 from agents_sync.domain_model.sync_plan import SyncResult
 from agents_sync.domain_model.sync_state import SurfaceLocation, SyncState
+from agents_sync.domain_model.tool_surface import ToolSurface
 from agents_sync.execute_sync_plan import execute_sync_plan
-from agents_sync.read_tool_surfaces import PreviousObservations, SurfaceSpec, read_tool_surfaces
+from agents_sync.read_tool_surfaces import (
+    PreviousObservations,
+    SurfaceSpec,
+    projection_surfaces,
+    read_tool_surfaces,
+)
 from agents_sync.runtime_config import RuntimeConfig
 from agents_sync.secret_policy import SECRET_POLICY_REFUSED
 from agents_sync.sync_state_store import load_sync_state, save_sync_state
@@ -76,7 +82,13 @@ def sync_once(
     observations = read_tool_surfaces(specs, previous_observations)
     stored = _load_stored_canonicals(state_dir, sync_state)
     available_tool_count = count_available_tools(resolved_paths, definitions)
-    plan = compute_sync_plan(observations, sync_state, stored, available_tool_count)
+    plan = compute_sync_plan(
+        observations,
+        sync_state,
+        stored,
+        available_tool_count,
+        _expected_surfaces(specs, stored),
+    )
     result, new_state = execute_sync_plan(
         plan, observations, sync_state, state_dir, secret_policy_value=secret_policy
     )
@@ -124,6 +136,24 @@ def _surface_specs(
     for definition in tool_definitions:
         specs.extend(surface_specs_for(definition, resolved_paths))
     return tuple(specs)
+
+
+def _expected_surfaces(
+    specs: tuple[SurfaceSpec, ...],
+    stored: Mapping[str, _StoredCanonical | None],
+) -> dict[str, tuple[ToolSurface, ...]]:
+    """Where each stored artifact belongs on every supporting tool whose root exists.
+
+    Derived from the same specs the read phase walked and the artifact's stored name,
+    so the planner can extend an artifact onto a tool holding no copy of it (Goal 1)
+    without the pure planner needing to know the tool registry or the filesystem. A
+    corrupt canonical is skipped: its kind and name cannot be trusted to mint paths.
+    """
+    return {
+        artifact_id: projection_surfaces(specs, document.kind, document.name)
+        for artifact_id, document in stored.items()
+        if isinstance(document, CanonicalDocument)
+    }
 
 
 def _load_stored_canonicals(

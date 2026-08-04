@@ -36,6 +36,7 @@ from agents_sync.domain_model.sync_plan import (
     SyncPlan,
 )
 from agents_sync.domain_model.sync_state import ArtifactRecord, SyncState
+from agents_sync.domain_model.tool_surface import ToolSurface
 
 # US-07 AC-5: the destructive intents a degenerate (< 2 available tools) poll must not
 # perform — propagation, removal, adoption (including absorb-into-managed, which projects
@@ -51,6 +52,8 @@ _DESTRUCTIVE_KINDS: frozenset[IntentKind] = frozenset(
         IntentKind.REMOVE_ARTIFACT,
     }
 )
+_NO_EXPECTED_SURFACES: Mapping[str, tuple[ToolSurface, ...]] = {}
+
 _MIN_TOOLS_FOR_DESTRUCTIVE = 2
 # US-11 AC-9: a tool losing this many recorded artifacts in one poll is a glitch (an
 # emptied root, an unmounted overlay), not user deletions — a lone vanish is deliberate.
@@ -62,19 +65,30 @@ def compute_sync_plan(
     sync_state: SyncState,
     stored_canonicals: Mapping[str, StoredCanonical | None],
     available_tool_count: int,
+    expected_surfaces: Mapping[str, tuple[ToolSurface, ...]] = _NO_EXPECTED_SURFACES,
 ) -> SyncPlan:
     """Decide the whole poll's ``SyncPlan`` from the gathered inputs (pure).
 
     ``stored_canonicals`` maps each managed ``artifact_id`` to its stored canonical (or
     ``None`` when none is stored); the read phase (S17) fills it. ``available_tool_count``
     is how many tools are ``available`` this poll, gating the two-tool guard.
+
+    ``expected_surfaces`` maps an ``artifact_id`` to where it belongs on every supporting
+    tool whose root exists — the caller derives it from the surface specs and the stored
+    name (``read_tool_surfaces.projection_surfaces``). It is what lets an artifact reach a
+    tool holding no copy of it; omitted, extension is inert and every other rule is
+    unaffected.
     """
     recovery = recover_identity(observations, sync_state)
     managed_plans: dict[str, tuple[SyncIntent, ...]] = {}
     for artifact_id, group in recovery.managed.items():
         record = sync_state.records.get(artifact_id, ArtifactRecord())
         managed_plans[artifact_id] = reconcile_known(
-            artifact_id, group, record, stored_canonicals.get(artifact_id)
+            artifact_id,
+            group,
+            record,
+            stored_canonicals.get(artifact_id),
+            expected_surfaces.get(artifact_id, ()),
         )
     managed_plans = _heal_glitched_removals(managed_plans, recovery.managed, sync_state.records)
     owners_by_key = _index_managed_keys(managed_plans, recovery.managed, sync_state.records)

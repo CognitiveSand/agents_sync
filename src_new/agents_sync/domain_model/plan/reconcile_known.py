@@ -33,6 +33,7 @@ from agents_sync.domain_model.sync_plan import (
     SyncIntent,
 )
 from agents_sync.domain_model.sync_state import ArtifactRecord
+from agents_sync.domain_model.tool_surface import ToolSurface
 
 StoredCanonical = CanonicalDocument | CorruptCanonical
 
@@ -42,12 +43,19 @@ def reconcile_known(
     observations: Sequence[SurfaceObservation],
     record: ArtifactRecord,
     stored_canonical: StoredCanonical | None = None,
+    expected_surfaces: Sequence[ToolSurface] = (),
 ) -> tuple[SyncIntent, ...]:
     """Decide one already-managed artifact's fate — a short pipeline of guards.
 
     ``stored_canonical`` is the artifact's truth loaded by the read phase; it is
     ``None`` until S8 wires it, in which case the canonical-authority checks are
     skipped (the content/shape decisions still apply).
+
+    ``expected_surfaces`` is where this artifact belongs on every supporting tool
+    whose root exists — including tools that hold no copy of it. It is what lets the
+    artifact reach a tool it has never been on (Goal 1) and return to one whose root
+    came back (US-11 AC-3); with the default empty sequence the extension rule is
+    inert and the pipeline behaves exactly as before.
     """
     if any(isinstance(observation.parsed, ParseFailure) for observation in observations):
         return (FreezeArtifact(artifact_id),)
@@ -57,10 +65,33 @@ def reconcile_known(
         return (RemoveArtifact(artifact_id),)
     changed = [observation for observation in observations if _has_changed(observation, record)]
     if changed:
-        return _absorb_change(artifact_id, observations, record, changed)
+        return _absorb_change(artifact_id, observations, record, changed, expected_surfaces)
     if _canonical_moved_out_of_band(stored_canonical, record):
         return (ReprojectCanonical(artifact_id),)
+    missing = _unoccupied_surfaces(observations, record, expected_surfaces)
+    if missing:
+        # Nothing changed, yet a supporting tool has no copy: extend onto it. This is
+        # the steady-state half of propagation — a newly adopted artifact reaching the
+        # other tools, and a tool whose root returned being re-extended (US-11 AC-3).
+        return (ProjectToTools(artifact_id, missing),)
     return ()
+
+
+def _unoccupied_surfaces(
+    observations: Sequence[SurfaceObservation],
+    record: ArtifactRecord,
+    expected_surfaces: Sequence[ToolSurface],
+) -> tuple[ToolSurface, ...]:
+    """Expected surfaces on tools that neither hold this artifact nor recorded it.
+
+    A tool is occupied when it was observed carrying the artifact this poll or the
+    record already places it there — the latter matters because a recorded tool whose
+    surface merely vanished is a *removal*, decided earlier in the pipeline, and must
+    never be silently re-created here.
+    """
+    occupied = {observation.tool_surface.tool for observation in observations}
+    occupied |= set(record.surfaces)
+    return tuple(surface for surface in expected_surfaces if surface.tool not in occupied)
 
 
 def _absorb_change(
@@ -68,6 +99,7 @@ def _absorb_change(
     observations: Sequence[SurfaceObservation],
     record: ArtifactRecord,
     changed: Sequence[SurfaceObservation],
+    expected_surfaces: Sequence[ToolSurface] = (),
 ) -> tuple[SyncIntent, ...]:
     """Absorb the freshest changed surface, then rename or project onto the rest."""
     winner = freshest(changed)
@@ -79,7 +111,11 @@ def _absorb_change(
         # subsumes the projection step, which writes to the old-slug locations).
         intents.append(RenameArtifact(artifact_id, winner_canonical.name))
     else:
+        # The edit goes to the tools that hold the artifact AND to any supporting tool
+        # that does not yet — an edit is how a new artifact first reaches its siblings,
+        # so restricting targets to observed surfaces would strand it on its origin.
         targets = tuple(o.tool_surface for o in observations if o is not winner)
+        targets += _unoccupied_surfaces(observations, record, expected_surfaces)
         if targets:
             intents.append(ProjectToTools(artifact_id, targets))
     return tuple(intents)

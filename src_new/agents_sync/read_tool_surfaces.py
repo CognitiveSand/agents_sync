@@ -23,6 +23,7 @@ from typing import Any
 
 from agents_sync.dialects import MalformedSurfaceError
 from agents_sync.dialects.structured_text import deserialize
+from agents_sync.domain_model.artifact_naming import slugify_name
 from agents_sync.domain_model.auxiliary_file import AuxiliaryFile
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
@@ -357,6 +358,58 @@ def _freeze_known_slots(
 
 
 # --- shared mechanics -----------------------------------------------------------------
+
+
+def projection_surfaces(
+    surface_specs: tuple[SurfaceSpec, ...], kind: str, name: str
+) -> tuple[ToolSurface, ...]:
+    """Where an artifact of ``kind`` named ``name`` belongs on every declared surface.
+
+    The read phase observes what *is* on disk; this derives what *should* be there —
+    the surface an artifact would occupy on a tool that does not yet hold it. It is
+    what lets the planner extend an artifact onto a tool with no copy (Goal 1) and
+    re-extend onto one whose root has returned (US-11 AC-3), neither of which can be
+    expressed by observed surfaces alone.
+
+    Deriving the location from ``slugify_name(name)`` — the same slug the
+    reconciliation key uses — is what keeps minting safe: two artifacts that would
+    land on one path necessarily share a key, so the planner's existing collision
+    guard already refuses them and no minted write can silently displace another
+    artifact. A spec whose root does not exist yields nothing: an absent root means
+    the tool is not installed (US-11), and syncing must never create one.
+    """
+    slug = slugify_name(name)
+    surfaces: list[ToolSurface] = []
+    for spec in surface_specs:
+        if spec.kind != kind:
+            continue
+        location = _projection_location(spec, slug, name)
+        if location is not None:
+            surfaces.append(ToolSurface(spec.tool, spec.kind, location, spec.surface_format))
+    return tuple(surfaces)
+
+
+def _projection_location(spec: SurfaceSpec, slug: str, name: str) -> Path | KeyedMapSlot | None:
+    """The location ``spec`` would give an artifact, or ``None`` if its root is absent."""
+    if isinstance(spec, DirectorySurfaceSpec):
+        if not spec.directory.is_dir():
+            return None
+        return spec.directory / f"{slug}{spec.filename_suffix}"
+    if isinstance(spec, SkillFolderSurfaceSpec):
+        if not spec.root.is_dir():
+            return None
+        return spec.root / slug / SKILL_FILENAME
+    if isinstance(spec, RulesFileSurfaceSpec):
+        if not spec.directory.is_dir():
+            return None
+        # FR-10: a rules file that does not exist yet is created under the
+        # highest-precedence declared filename (``AGENTS.md`` where offered).
+        return spec.directory / spec.candidate_filenames[0]
+    if not spec.file.parent.is_dir():
+        return None
+    # A keyed-map slot is keyed by the artifact's own name, not its slug: the slot key
+    # is wire data the tool reads back, not a filesystem basename.
+    return KeyedMapSlot(spec.file, name)
 
 
 def surface_content_digest(

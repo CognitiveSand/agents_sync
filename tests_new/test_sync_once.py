@@ -102,12 +102,17 @@ def test_make_periodic_poll_threads_state_across_polls(tmp_path: Path) -> None:
 
     first = poll()
     second = poll()
+    third = poll()
 
-    # One artifact adopted on the first poll; re-polling threads the state so it is
-    # never re-adopted — exactly one canonical, not one per poll.
+    # Poll 1 adopts the candidate; poll 2 extends it onto the other tool, which has no
+    # copy yet (NFR-02: propagation within twice the interval). By poll 3 the artifact
+    # occupies every supporting tool, so state threading makes it a genuine no-op —
+    # re-polling never re-adopts, and there is one canonical, not one per poll.
     assert first.changed == 1  # exactly one adoption on the first poll, no over-count
-    assert second.changed == 0  # state threading made the second poll a genuine no-op
+    assert second.changed == 1  # extended onto the tool that held no copy
+    assert third.changed == 0  # settled: nothing left to do
     assert len(list_canonical_ids(state_dir)) == 1
+    assert (_cursor_dir / "helper.md").exists()
 
 
 def test_sync_once_isolates_an_unadoptable_surface(tmp_path: Path) -> None:

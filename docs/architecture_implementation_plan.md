@@ -358,7 +358,26 @@ An **AC parity sweep** (2026-08-04) drove 14 user-visible behaviours end-to-end 
 because unit coverage cannot answer whether a component is *wired*. Full method and results in
 `docs/audits/cutover_loose_ends_register_2026_07_12.md`. The core loop is sound; three items block.
 
-**G-gate-1 — cross-tool creation does not exist. BLOCKS S24.**
+**G-gate-1 — cross-tool creation. ✓ CLOSED (0.7.60, amendment 023):** the planner now decides
+where an artifact *belongs* (one expected surface per supporting tool whose root exists), not only
+where it was seen, and an unoccupied expected surface is a projection target. Minting is safe
+without new guards because locations derive from the same slug the reconciliation key uses, so two
+artifacts that would collide already share a key. `compute_sync_plan` stays pure — `sync_once`
+derives the expected surfaces from the specs and stored names and passes them as data. Adoption on
+one poll, extension on the next (NFR-02), then settled. Parity probe: Goal 1 passes.
+
+**G-gate-2 — US-11 AC-3 re-extend to a returning tool. STILL OPEN, and NOT the same fix.**
+The sweep's remaining failure. A recorded tool whose root returns **empty** is read as a deletion:
+`_has_vanished_surface` short-circuits to `RemoveArtifact` before the extension rule is reached, and
+once the returning root lifts the two-tool guard the removal executes — taking the artifact off
+every healthy tool. Bytes survive in the archive (NFR-01), so it is disappearance, not destruction,
+but nothing tells the user. **The legacy tree behaves identically (verified), so this is a
+long-standing defect shared by both trees and live in the shipped daemon.** It needs a US-11
+availability decision — AC-4 says an unavailable tool's entry is *preserved verbatim*, which is
+precisely what later reads as a deletion — so it is recorded rather than patched. The AC-3 test is a
+strict xfail naming the cause. See the register.
+
+**G-gate-1 (original finding) — cross-tool creation did not exist.**
 
 Found 2026-08-04 while writing S23i's end-to-end tests, and unrelated to skills: the rebuild
 propagates edits *among* tools that already hold an artifact but never *creates* one on a tool that
