@@ -42,6 +42,24 @@ else:
     _AdoptionHostBase = object
 
 
+def surviving_skill_source(info: CustomizationArtifactInfo) -> Path | None:
+    """The first tool copy of a directory skill still present on disk, or ``None``.
+
+    A directory skill's auxiliary files (anything beside ``SKILL.md``) live only
+    on disk: the canonical document carries the ``SKILL.md`` body and nothing
+    else. So a surviving tool copy is the *only* source from which a projection
+    can reconstruct a whole skill folder; rendering without one yields a folder
+    holding just ``SKILL.md``. Returns ``None`` for non-skill kinds and when no
+    recorded copy survives.
+    """
+    if info.kind != "skill":
+        return None
+    for tool_info in info.agentic_tools.values():
+        if tool_info.path.exists():
+            return tool_info.path
+    return None
+
+
 class CanonicalProjectionMixin(_AdoptionHostBase):
     """Heal / extend / re-project a managed pair from its canonical document."""
 
@@ -100,12 +118,7 @@ class CanonicalProjectionMixin(_AdoptionHostBase):
             return False
         self._ensure_canonical_metadata(pair_id, canonical)
 
-        source_dir: Path | None = None
-        if info.kind == "skill":
-            for _tool_name, tool_info in info.agentic_tools.items():
-                if tool_info.path.exists():
-                    source_dir = tool_info.path
-                    break
+        source_dir = surviving_skill_source(info)
 
         results: dict[str, RenderResult] = {}
         for tool_name in target_tools:
@@ -128,6 +141,7 @@ class CanonicalProjectionMixin(_AdoptionHostBase):
         pair_id: str,
         state: dict[str, CustomizationArtifactState],
         target_tools: list[str] | None = None,
+        source_dir: Path | None = None,
     ) -> bool:
         """Heal: project a managed pair's canonical onto supporting, available
         tools (US-11 AC-8/AC-9, NFR-16).
@@ -137,9 +151,18 @@ class CanonicalProjectionMixin(_AdoptionHostBase):
         or for glitch-vanished tools re-projected per US-11 AC-9. With
         ``target_tools=None`` it projects onto every supporting available tool
         not yet recorded (the stub case); pass an explicit list to re-heal
-        specific (already-recorded) tools. Rendering is canonical-only
-        (``source_dir=None``); ``update_state_n_way`` records the post-write
-        on-disk digest so the next poll re-projects nothing (NFR-05).
+        specific (already-recorded) tools. ``update_state_n_way`` records the
+        post-write on-disk digest so the next poll re-projects nothing (NFR-05).
+
+        ``source_dir`` is a surviving on-disk copy of a directory skill, supplied
+        by callers that hold a discovery ``info`` (see
+        :func:`surviving_skill_source`). It is required to restore a skill's
+        auxiliary files, because the canonical carries only the ``SKILL.md``
+        body: healing a multi-file skill without it writes back a folder holding
+        just ``SKILL.md`` and then records *that* as the tool's digest, so no
+        later poll ever notices the folder is short. Callers that cannot supply
+        one (the pair vanished from every tool) get a loud warning below rather
+        than a silent truncation.
         """
         ps = state[pair_id]
         canonical = load_canonical(self.state_dir, pair_id)
@@ -152,9 +175,26 @@ class CanonicalProjectionMixin(_AdoptionHostBase):
             target_tools = [
                 t for t in self._available_participating_tools(kind) if t not in ps.agentic_tools
             ]
+        if kind == "skill" and source_dir is None and ps.agentic_tools:
+            # The pair held on-disk copies (so it is not a fresh zero-tool import
+            # stub) yet none survives to source auxiliary files from. Anything the
+            # folder carried beside SKILL.md cannot be reconstructed: the canonical
+            # does not store it. Say so — the truncated folder is about to become
+            # the recorded baseline.
+            logging.warning(
+                "Skill healed from canonical with no surviving copy to source from: "
+                "pair_id=%s name=%s tools=%s — only SKILL.md can be restored; any "
+                "auxiliary files the folder carried are not held in the canonical "
+                "and must be restored from a backup",
+                pair_id,
+                canonical.get("name"),
+                sorted(target_tools),
+            )
         results: dict[str, RenderResult] = {}
         for tool_name in target_tools:
-            result = self._render_canonical_one(pair_id, kind, canonical, tool_name)
+            result = self._render_canonical_one(
+                pair_id, kind, canonical, tool_name, source_dir=source_dir
+            )
             if result is not None:
                 results[tool_name] = result
         if not results:

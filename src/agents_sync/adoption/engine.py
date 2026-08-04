@@ -19,7 +19,10 @@ from pathlib import Path
 from typing import Any
 
 from agents_sync import archive
-from agents_sync.adoption.canonical_projection import CanonicalProjectionMixin
+from agents_sync.adoption.canonical_projection import (
+    CanonicalProjectionMixin,
+    surviving_skill_source,
+)
 from agents_sync.adoption.privacy_gate import PrivacyGateMixin
 from agents_sync.adoption.removal_propagator import RemovalPropagatorMixin
 from agents_sync.agentic_tool_spec import (
@@ -106,8 +109,15 @@ class AdoptionEngine(
                 )
             # Every vanished tool is glitch-flagged (>=2 of its artifacts gone
             # this poll, US-11 AC-9): a transient glitch, not a deletion —
-            # re-project from the authoritative canonical.
-            return self.project_from_canonical(pair_id, state, target_tools=missing_from_state)
+            # re-project from the authoritative canonical. A skill's auxiliary
+            # files are not in the canonical, so the surviving tool copies are
+            # passed as the source to restore the whole folder, not just SKILL.md.
+            return self.project_from_canonical(
+                pair_id,
+                state,
+                target_tools=missing_from_state,
+                source_dir=surviving_skill_source(info),
+            )
         if not present:
             return False
 
@@ -630,4 +640,3 @@ class AdoptionEngine(
             )
             return
         archive.archive_copy(self.state_dir, pair_id, tool, tool_info.path)
-
