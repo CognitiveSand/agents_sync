@@ -379,13 +379,29 @@ not a removal source, but when it returns the artifact is never re-projected ont
 observed-surfaces root cause as G-gate-1, and fixed by the same change; recorded separately because
 it is a distinct user-visible promise (US-11 AC-3).
 
-**G-gate-3 — FR-07 global rules do not sync across tools. Regression vs the legacy tree.**
-A whole-file rules surface (`AGENTS.md`, no front matter) parses to `name=''`; a directory rules
-surface (cursor `*.mdc`) parses to its declared name. Reconciliation keys on `(kind, slug(name))`,
-so they never join — the sweep saw two rules artifacts, one per tool, and edits never crossing. The
-legacy tree reconciles the same input into one artifact across four tools. Rules are the one kind
-where a tool holds at most one artifact, so identity cannot rest on a name the format does not
-carry; this needs a reconciliation rule for the kind, not a naming patch. Its own step.
+**G-gate-3 — global-rules identity: a whole-file rules artifact has no name.**
+(The sweep's first reading — "rules do not sync across tools" — was too broad; corrected here and in
+the register.) Global rules **do** sync across the whole-file family (claude ↔ codex ↔ opencode).
+The defect is that they do so by accident: a plain `AGENTS.md` carries no name, so it parses to
+`name=''` and `slugify_name` yields the **placeholder slug `"converted"`**. Whole-file tools share a
+key because they are equally unnamed, not because they share an identity — and once G-gate-1 lands,
+projecting global rules onto cursor's directory surface will write `~/.cursor/rules/converted.mdc`.
+The legacy tree avoids this with a forced `GLOBAL_RULE_NAME = "global"`, but copying that verbatim
+also imports legacy's deadlock: with a differently-named cursor rule, legacy adopts nothing and logs
+`Target collision` every poll, where the rebuild settles cleanly. Two options for the owner:
+
+1. **Name the whole-file rules artifact as recipe data** (`default_artifact_name`, tools-as-data
+   rather than a dialect constant). Removes the placeholder slug and gives rules a real identity.
+   Whether that name should be `global` — which would make it reconcile with a cursor rule of the
+   same name, legacy's behaviour — is the part that needs deciding.
+2. **Treat the N-to-1 mapping as the real question** and resolve it under **US-16** (section
+   decomposition, unimplemented in both trees): many cursor `.mdc` rules cannot all become one
+   `AGENTS.md`, so either they compose into it or only one designated artifact crosses to whole-file
+   tools. This is the same knot that has US-15's egress enforcement deferred pending a spike.
+
+Option 1 is a contained fix that removes a latent user-visible wart; option 2 is the spike that
+settles what global-rules identity *means*. They are not exclusive — 1 unblocks the cutover, 2 is
+the design debt behind it.
 
 ### Phase G — Cutover & retirement
 | # | Step | Touches | Spec / test focus |
