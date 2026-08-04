@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 
 from agents_sync.domain_model.canonical_document import CanonicalDocument
-from agents_sync.domain_model.observation import ParseFailure
 from agents_sync.domain_model.tool_surface import ToolSurface
 from agents_sync.read_tool_surfaces import SkillFolderSurfaceSpec, read_tool_surfaces
 from agents_sync.tools.agentic_tools_registry import (
@@ -125,38 +124,71 @@ def test_a_skill_is_observed_by_its_embedded_id(tmp_path: Path) -> None:
 # --- fail-loud auxiliary-file guard (amendment 020, §8) -------------------------------
 
 
-def test_a_skill_with_auxiliary_files_freezes_but_isolates(tmp_path: Path) -> None:
+def test_a_skill_with_auxiliary_files_carries_them_on_the_document(tmp_path: Path) -> None:
+    # S23i: the folder is the artifact, so files beside SKILL.md are read onto the
+    # document rather than freezing it (the S23f deferral this replaces).
     root = tmp_path / "skills"
     multi_dir = _write_skill(root, "multi", _AUX_ID)
-    (multi_dir / "helper.py").write_text("print('hi')\n")  # an auxiliary file
+    (multi_dir / "helper.py").write_text("print('hi')\n")
     _write_skill(root, "solo", _ARTIFACT_ID)  # an aux-free sibling in the same root
     specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
 
     observations = read_tool_surfaces(specs)
 
     by_slug = {obs.tool_surface.location.parent.name: obs for obs in observations}
-    # The aux-bearing skill is frozen loudly — named, never silently truncated.
-    assert isinstance(by_slug["multi"].parsed, ParseFailure), "aux-bearing skill is frozen"
-    assert "S23i" in by_slug["multi"].parsed.reason, "the freeze reason names the deferred step"
-    assert "helper.py" in by_slug["multi"].parsed.reason, "the reason names the offending file"
-    # Per-artifact isolation (FR-02, amendment 012): the sibling observes normally.
-    assert isinstance(by_slug["solo"].parsed, CanonicalDocument), (
-        "the aux-free sibling is unaffected"
-    )
-    assert by_slug["solo"].parsed.artifact_id == _ARTIFACT_ID
+    multi = by_slug["multi"].parsed
+    assert isinstance(multi, CanonicalDocument)
+    assert multi.auxiliary_files["helper.py"].to_bytes() == b"print('hi')\n"
+    # An aux-free skill carries an empty map, not a spurious entry for its SKILL.md.
+    solo = by_slug["solo"].parsed
+    assert isinstance(solo, CanonicalDocument)
+    assert dict(solo.auxiliary_files) == {}
 
 
-def test_a_subdirectory_inside_a_skill_folder_also_freezes(tmp_path: Path) -> None:
+def test_auxiliary_files_nest_at_any_depth(tmp_path: Path) -> None:
     root = tmp_path / "skills"
     skill_dir = _write_skill(root, "nested", _ARTIFACT_ID)
-    (skill_dir / "references").mkdir()  # a subdirectory is auxiliary content too
+    (skill_dir / "references").mkdir()
+    (skill_dir / "references" / "detail.md").write_text("the single home of the detail\n")
     specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
 
     observations = read_tool_surfaces(specs)
 
     [observation] = observations
-    assert isinstance(observation.parsed, ParseFailure)
-    assert "S23i" in observation.parsed.reason
+    assert isinstance(observation.parsed, CanonicalDocument)
+    # Keyed by POSIX-relative path, so the layout is reproduced on every other tool.
+    assert list(observation.parsed.auxiliary_files) == ["references/detail.md"]
+
+
+def test_an_edit_to_an_auxiliary_file_changes_the_surface_digest(tmp_path: Path) -> None:
+    # Without this the daemon would compare only SKILL.md and a reference edit would
+    # never propagate — the folder would silently drift between tools.
+    root = tmp_path / "skills"
+    skill_dir = _write_skill(root, "digest", _ARTIFACT_ID)
+    (skill_dir / "reference.md").write_text("before\n")
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    [before] = read_tool_surfaces(specs)
+
+    (skill_dir / "reference.md").write_text("after\n")
+    [after] = read_tool_surfaces(specs)
+
+    assert before.content_digest != after.content_digest
+
+
+def test_os_sidecar_metadata_is_not_carried_as_content(tmp_path: Path) -> None:
+    # .DS_Store / AppleDouble files are per-machine Finder state; propagating them
+    # onto every other tool would be noise. The legacy tree excluded them too.
+    root = tmp_path / "skills"
+    skill_dir = _write_skill(root, "macos", _ARTIFACT_ID)
+    (skill_dir / ".DS_Store").write_text("finder metadata")
+    (skill_dir / "._asset.png").write_text("appledouble metadata")
+    (skill_dir / "real.md").write_text("carried\n")
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+
+    [observation] = read_tool_surfaces(specs)
+
+    assert isinstance(observation.parsed, CanonicalDocument)
+    assert list(observation.parsed.auxiliary_files) == ["real.md"]
 
 
 # --- antigravity activation (was inert) -----------------------------------------------

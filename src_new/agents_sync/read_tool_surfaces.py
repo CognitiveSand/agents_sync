@@ -23,12 +23,18 @@ from typing import Any
 
 from agents_sync.dialects import MalformedSurfaceError
 from agents_sync.dialects.structured_text import deserialize
+from agents_sync.domain_model.auxiliary_file import AuxiliaryFile
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
 from agents_sync.domain_model.sync_state import SurfaceLocation
 from agents_sync.domain_model.tool_surface import KeyedMapSlot, SurfaceFormat, ToolSurface
-from agents_sync.parser_bounds import read_text_bounded
+from agents_sync.parser_bounds import ParserBoundsExceeded, read_text_bounded
 from agents_sync.rules_import_resolution import RulesImportError, inline_rules_imports
+from agents_sync.skill_auxiliary_files import (
+    SKILL_FILENAME,
+    auxiliary_files_digest,
+    read_auxiliary_files,
+)
 from agents_sync.translation import extract_artifact_id, file_to_canonical
 
 
@@ -84,15 +90,6 @@ type SurfaceSpec = (
 type PreviousObservations = Mapping[SurfaceLocation, SurfaceObservation]
 
 _NO_HISTORY: PreviousObservations = {}
-_SKILL_FILENAME = "SKILL.md"
-
-
-class SkillAuxiliaryFilesUnsupportedError(ValueError):
-    """A skill folder carries auxiliary files beyond its ``SKILL.md`` — deferred to S23i.
-
-    Raised by the read walker and caught per-folder into a ``ParseFailure`` (freeze),
-    mirroring ``RulesImportError``: loud and reported, but isolated (FR-02), so one
-    aux-bearing skill never crashes the poll and is never silently truncated."""
 
 
 def read_tool_surfaces(
@@ -133,42 +130,53 @@ def _observe_skill_folder(
 ) -> list[SurfaceObservation]:
     """Every ``<slug>/SKILL.md`` under the skill root is one surface (FR-06).
 
-    A skill folder carrying auxiliary files is frozen (S23i) rather than truncated:
-    the guard raises, caught here into a per-folder ``ParseFailure`` — loud but
-    isolated, exactly like ``_resolve_rules_imports_in``'s import failures."""
+    The folder is the artifact, so the files beside ``SKILL.md`` are read as the
+    document's ``auxiliary_files`` (S23i) and folded into the surface digest. A
+    folder that breaches the size bounds is frozen rather than partly adopted:
+    the error is caught per folder into a ``ParseFailure`` — loud but isolated
+    (FR-02), exactly like ``_resolve_rules_imports_in``'s import failures."""
     if not spec.root.is_dir():
         return []
     observations: list[SurfaceObservation] = []
     for skill_dir in sorted(spec.root.iterdir()):
         if not skill_dir.is_dir():
             continue
-        skill_md = skill_dir / _SKILL_FILENAME
+        skill_md = skill_dir / SKILL_FILENAME
         surface = ToolSurface(spec.tool, spec.kind, skill_md, spec.surface_format)
-        try:
-            _reject_skill_auxiliary_files(skill_dir)
-        except SkillAuxiliaryFilesUnsupportedError as error:
-            observations.append(_frozen_skill(surface, skill_md, str(error)))
+        if not skill_md.is_file():
             continue
-        if skill_md.is_file():
-            observations.append(_observe_file(surface, previous))
+        observations.append(_attach_auxiliary_files(_observe_file(surface, previous), skill_dir))
     return observations
 
 
-def _reject_skill_auxiliary_files(skill_dir: Path) -> None:
-    """Raise if the folder holds anything besides its ``SKILL.md`` (deferred S23i)."""
-    extras = sorted(entry.name for entry in skill_dir.iterdir() if entry.name != _SKILL_FILENAME)
-    if extras:
-        raise SkillAuxiliaryFilesUnsupportedError(
-            f"skill folder {skill_dir.name!r} carries auxiliary files {extras}; "
-            f"directory-tree skills are deferred to S23i — frozen, not truncated"
-        )
+def _attach_auxiliary_files(observation: SurfaceObservation, skill_dir: Path) -> SurfaceObservation:
+    """Fold the folder's non-``SKILL.md`` files into the parsed document and digest.
 
-
-def _frozen_skill(surface: ToolSurface, skill_md: Path, reason: str) -> SurfaceObservation:
-    """A skill frozen for unsupported content: reported, not propagated (FR-02)."""
-    return SurfaceObservation(
-        tool_surface=surface, modified_time=_modified_time(skill_md), parsed=ParseFailure(reason)
+    The digest must cover them or an edit to a reference file would never surface
+    as a change; the executor's ``surface_content_digest`` composes the same way,
+    so a write records what the next poll will observe (NFR-05).
+    """
+    parsed = observation.parsed
+    if isinstance(parsed, ParseFailure):
+        return observation
+    try:
+        auxiliary_files = read_auxiliary_files(skill_dir)
+    except (OSError, ParserBoundsExceeded) as error:
+        return replace(observation, parsed=ParseFailure(f"unreadable skill folder: {error}"))
+    if not auxiliary_files:
+        return observation
+    return replace(
+        observation,
+        content_digest=_compose_skill_digest(
+            observation.content_digest, auxiliary_files_digest(auxiliary_files)
+        ),
+        parsed=replace(parsed, auxiliary_files=auxiliary_files),
     )
+
+
+def _compose_skill_digest(skill_md_digest: str, auxiliary_digest: str) -> str:
+    """One digest over the whole folder: its ``SKILL.md`` and its auxiliary files."""
+    return _text_digest(f"{skill_md_digest}\0{auxiliary_digest}")
 
 
 def _observe_rules_file(
@@ -329,13 +337,25 @@ def _freeze_known_slots(
 # --- shared mechanics -----------------------------------------------------------------
 
 
-def surface_content_digest(text: str, tool_surface: ToolSurface) -> str:
+def surface_content_digest(
+    text: str,
+    tool_surface: ToolSurface,
+    auxiliary_files: Mapping[str, AuxiliaryFile] | None = None,
+) -> str:
     """The digest this read phase would observe for ``text`` at ``tool_surface``.
 
     The executor records it after a write, so the next poll sees the written
     surface as unchanged (NFR-05). Keyed-map slots digest their slot VALUE (the
     canonical JSON form), per-file surfaces the raw text. Rules surfaces with
-    imports use a composite recipe the executor does not yet write (S20)."""
+    imports use a composite recipe the executor does not yet write (S20).
+
+    A skill surface digests the whole folder: ``auxiliary_files`` composes in
+    exactly as ``_attach_auxiliary_files`` composes it on the read side, so a
+    written folder and the next poll's observation of it agree."""
+    if auxiliary_files:
+        return _compose_skill_digest(
+            _text_digest(text), auxiliary_files_digest(dict(auxiliary_files))
+        )
     location = tool_surface.location
     if isinstance(location, KeyedMapSlot):
         slot_map = _navigate_slot_map(

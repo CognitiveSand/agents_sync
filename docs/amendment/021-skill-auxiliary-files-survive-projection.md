@@ -1,7 +1,6 @@
 # Amendment 021 — A skill's auxiliary files must survive a canonical projection
 
-- status: applied in part (legacy `src/` heal path, 0.7.57); S23i promoted to
-  required-before-cutover for the rebuild
+- status: applied — legacy `src/` heal path (0.7.57) and rebuild S23i (0.7.58)
 - branch: fix/size-explosion-hardening
 - date: 2026-08-04
 - relates to: FR-06 (skill matrix), NFR-01 (no user content destroyed),
@@ -158,3 +157,57 @@ deliberately triggers the warning path.
 
 Full local CI green: ruff, `mypy --strict` over `src/` and `src_new/`, the
 conformance suite, and the rebuild suite.
+
+## S23i — the root fix (rebuild `src_new/`, applied 0.7.58)
+
+Owner decisions taken before implementing (2026-08-04):
+
+- **Auxiliary content encoding: text when UTF-8-decodable, base64 otherwise**, per
+  file, with the encoding recorded alongside the content. Binary assets sync, and
+  the ordinary case stays readable and diffable in the store. Chosen by decoding,
+  never by file suffix.
+- **Auxiliary content is body-like and is NOT secret-scanned.** `find_secret_literals`
+  scans the wire-shaped carriers (`env`/`headers`/`auth`); `body` prose is NFR-15's
+  documented residual. An auxiliary file is content of the same nature, so it
+  inherits the same treatment rather than creating an aux-scanned/body-unscanned
+  asymmetry. Residual risk accepted and recorded in the register.
+
+What landed:
+
+1. **`domain_model/auxiliary_file`** — the `AuxiliaryFile` codec.
+2. **`skill_auxiliary_files`** — the folder↔map gateway: one home for the walk order,
+   the exclusions (`SKILL.md`, OS sidecars) and the bounds, so reading and writing
+   cannot drift apart.
+3. **`CanonicalDocument.auxiliary_files`** — the store now holds the whole artifact,
+   which is what makes NFR-16 true for skills.
+4. **`read_tool_surfaces`** — the folder walk, with a composite digest so an edit to
+   a reference file registers as a change to the artifact.
+5. **`execute_sync_plan/_shared.write_surface_content`** — one folder-aware writer
+   replacing four separate `write_text_atomic` + `surface_content_digest` pairs; a
+   skill is published through `replace_directory_atomic` (NFR-03).
+6. **`auxiliary_files_already_on_disk`** — the skip test now considers the whole
+   folder. Without it a target whose `SKILL.md` matched would be skipped as current
+   while its references stayed missing: the reported bug, reintroduced in the new
+   tree by an optimisation that predates folders.
+7. **`identity_intents`** — a renamed skill retires its whole old folder rather than
+   unlinking its `SKILL.md` and orphaning the tree beside it.
+8. **`parser_bounds`** — `read_bytes_bounded` plus file-count and folder-byte caps,
+   so a mis-pointed root is refused rather than adopted and copied everywhere.
+
+`portable_library` needed no change: it ships canonical documents, so auxiliary
+files travel with them once the document carries them (US-12, verified by test).
+
+`tests_new/test_skill_auxiliary_propagation.py` (7 tests) covers adoption into the
+canonical, projection over a truncated folder, projection when only the auxiliary
+side differs, binary byte-preservation, steady state, an auxiliary edit propagating,
+and export→import. `tests_new/test_skill_surface.py`'s two S23f freeze tests are
+replaced by the behaviour that supersedes them, plus digest and sidecar coverage.
+
+## Unrelated blocker found while testing S23i
+
+Writing the end-to-end tests surfaced that **the rebuild never creates an artifact on
+a tool that does not already have one** — for any kind, agents included.
+`reconcile_known._absorb_change` draws projection targets from observed surfaces, so a
+tool with no copy is never a target. This is the product's headline behaviour and it
+blocks S24. Recorded in full in the register and in the implementation plan as a
+Phase G-gate; it needs an owner decision and is not addressed here.

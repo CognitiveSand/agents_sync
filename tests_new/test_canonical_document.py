@@ -44,6 +44,7 @@ def _agent_doc(**overrides: object) -> dict[str, object]:
         "auth": {},
         "per_tool_only": {"claude": {"color": "blue"}},
         "per_tool_extra": {"codex": {"x_unknown": 1}},
+        "auxiliary_files": {},
     }
     base.update(overrides)
     return base
@@ -80,6 +81,7 @@ def _mcp_doc(**overrides: object) -> dict[str, object]:
         "auth": {},
         "per_tool_only": {},
         "per_tool_extra": {},
+        "auxiliary_files": {},
     }
     base.update(overrides)
     return base

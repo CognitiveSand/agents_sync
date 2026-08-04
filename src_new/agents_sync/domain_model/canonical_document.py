@@ -24,6 +24,8 @@ from dataclasses import dataclass, field, replace
 from types import MappingProxyType
 from typing import Any
 
+from agents_sync.domain_model.auxiliary_file import AuxiliaryFile
+
 _REQUIRED_FIELDS: tuple[str, ...] = ("artifact_id", "kind")
 
 
@@ -71,6 +73,12 @@ class CanonicalDocument:
     auth: Mapping[str, str] = field(default_factory=dict)
     per_tool_only: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     per_tool_extra: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    # skill-only (S23i): every file in the skill folder other than its SKILL.md,
+    # keyed by POSIX-relative path within the folder (e.g. "references/detail.md").
+    # Holding them here is what makes the canonical the whole artifact rather than
+    # just its front page: a projection can restore a multi-file skill from the
+    # store alone (NFR-16), and an exported library carries them (US-12).
+    auxiliary_files: Mapping[str, AuxiliaryFile] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Deep-freeze the mapping fields: frozen guards attribute rebinding, not
@@ -81,6 +89,9 @@ class CanonicalDocument:
         object.__setattr__(self, "auth", _freeze(self.auth))
         object.__setattr__(self, "per_tool_only", _freeze(self.per_tool_only))
         object.__setattr__(self, "per_tool_extra", _freeze(self.per_tool_extra))
+        # AuxiliaryFile is itself a frozen dataclass, so freezing the outer mapping
+        # is enough to make the whole field immutable.
+        object.__setattr__(self, "auxiliary_files", _freeze(self.auxiliary_files))
 
     def __hash__(self) -> int:
         # Hash by content digest (the auto-generated hash would raise on the mapping
@@ -125,6 +136,7 @@ class CanonicalDocument:
             auth=dict(data.get("auth") or {}),
             per_tool_only=dict(data.get("per_tool_only") or {}),
             per_tool_extra=dict(data.get("per_tool_extra") or {}),
+            auxiliary_files=_auxiliary_files_from_dict(data.get("auxiliary_files")),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -154,6 +166,9 @@ class CanonicalDocument:
             "auth": dict(self.auth),
             "per_tool_only": _thaw(self.per_tool_only),
             "per_tool_extra": _thaw(self.per_tool_extra),
+            "auxiliary_files": {
+                path: auxiliary.to_dict() for path, auxiliary in self.auxiliary_files.items()
+            },
         }
 
     def normalised(self) -> CanonicalDocument:
@@ -176,6 +191,20 @@ class CanonicalDocument:
         """Stable lowercase-hex SHA-256 over normalised content (FR-14)."""
         payload = json.dumps(self.normalised().to_dict(), sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _auxiliary_files_from_dict(data: Any) -> dict[str, AuxiliaryFile]:
+    """Rebuild the auxiliary-file map, failing loud on a malformed block (§8).
+
+    A corrupt entry raises rather than being dropped: silently discarding one is
+    exactly the truncation this field exists to prevent, and the store's caller
+    already routes a raising ``from_dict`` into its quarantine path (US-09 AC-4).
+    """
+    if not data:
+        return {}
+    if not isinstance(data, Mapping):
+        raise ValueError(f"auxiliary_files must be an object, got {type(data).__name__}")
+    return {str(path): AuxiliaryFile.from_dict(entry) for path, entry in data.items()}
 
 
 def _freeze(value: Any) -> Any:

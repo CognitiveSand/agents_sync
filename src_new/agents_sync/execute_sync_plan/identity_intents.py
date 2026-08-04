@@ -11,6 +11,7 @@ interruption leaves an orphan canonical the next poll heals (NFR-04).
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import replace
 from pathlib import Path
 
@@ -32,9 +33,10 @@ from agents_sync.execute_sync_plan._shared import (
     IntentAbortError,
     recorded_targets,
     reject_shared_write_file,
+    skill_folder,
     target_file,
+    write_surface_content,
 )
-from agents_sync.read_tool_surfaces import surface_content_digest
 from agents_sync.secret_policy import enforce_secret_policy
 from agents_sync.translation import (
     canonical_to_file,
@@ -66,10 +68,9 @@ def adopt_new_artifact(intent: AdoptNewArtifact, execution: ExecutionContext) ->
     save_canonical(execution.state_dir, canonical)
     recorded_surfaces: dict[str, RecordedSurface] = {}
     for surface, new_text in pending_writes:
-        write_text_atomic(target_file(surface), new_text)
         recorded_surfaces[surface.tool] = RecordedSurface(
             location=surface.location,
-            content_digest=surface_content_digest(new_text, surface),
+            content_digest=write_surface_content(surface, new_text, canonical.auxiliary_files),
         )
     execution.records[minted_id] = ArtifactRecord(
         name=canonical.name,
@@ -107,17 +108,21 @@ def rename_artifact(intent: RenameArtifact, execution: ExecutionContext) -> None
             pending.append((new_surface, old_file, final_text, None))
         else:
             final_text = canonical_to_file(canonical, new_surface, prior_text)
-            pending.append((new_surface, target_file(new_surface), final_text, old_file))
+            # A skill's old location is a whole folder, not a lone SKILL.md: the
+            # auxiliary files travel to the new slug via the canonical, so the old
+            # folder is retired entire rather than left behind as a stray tree.
+            stale = skill_folder(old_surface) or old_file
+            pending.append((new_surface, target_file(new_surface), final_text, stale))
     # every old-slug byte is archived — now, and only now, relocate.
     record = execution.records.get(intent.artifact_id, ArtifactRecord())
     relocated: dict[str, RecordedSurface] = dict(record.surfaces)
-    for new_surface, write_file, final_text, unlink_file in pending:
-        write_text_atomic(write_file, final_text)
-        if unlink_file is not None:
-            unlink_file.unlink()  # the old-slug bytes are already archived
+    for new_surface, _write_file, final_text, stale_location in pending:
+        digest = write_surface_content(new_surface, final_text, canonical.auxiliary_files)
+        if stale_location is not None:
+            _remove_stale_location(stale_location)  # old-slug bytes already archived
         relocated[new_surface.tool] = RecordedSurface(
             location=new_surface.location,
-            content_digest=surface_content_digest(final_text, new_surface),
+            content_digest=digest,
         )
     save_canonical(execution.state_dir, canonical)
     execution.records[intent.artifact_id] = replace(
@@ -152,6 +157,14 @@ def remove_artifact(intent: RemoveArtifact, execution: ExecutionContext) -> None
         archive_move(execution.state_dir, intent.artifact_id, "_canonical", stored_canonical)
     execution.records.pop(intent.artifact_id, None)
     execution.changed += 1
+
+
+def _remove_stale_location(location: Path) -> None:
+    """Retire a renamed artifact's old location: a lone file, or a skill's folder."""
+    if location.is_dir():
+        shutil.rmtree(location)
+    else:
+        location.unlink()
 
 
 def _archive_surface_bytes(

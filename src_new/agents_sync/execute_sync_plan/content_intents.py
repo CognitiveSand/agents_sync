@@ -13,7 +13,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from agents_sync.artifact_archive import archive_copy
-from agents_sync.atomic_file_writer import write_text_atomic
 from agents_sync.canonical_store import load_canonical, save_canonical
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.plan.winner_selection import freshest
@@ -23,10 +22,11 @@ from agents_sync.domain_model.tool_surface import ToolSurface
 from agents_sync.execute_sync_plan._shared import (
     ExecutionContext,
     IntentAbortError,
+    auxiliary_files_already_on_disk,
     reject_shared_write_file,
     target_file,
+    write_surface_content,
 )
-from agents_sync.read_tool_surfaces import surface_content_digest
 from agents_sync.secret_policy import enforce_secret_policy
 from agents_sync.translation import canonical_to_file
 
@@ -74,7 +74,9 @@ def project_canonical(
         render_file = target_file(target)
         prior_text = render_file.read_text(encoding="utf-8") if render_file.exists() else None
         new_text = canonical_to_file(canonical, target, prior_text)
-        if new_text == prior_text:
+        if new_text == prior_text and auxiliary_files_already_on_disk(
+            target, canonical.auxiliary_files
+        ):
             continue  # identical render: no write, no archive (NFR-05/07)
         if prior_text is not None:
             archive_copy(execution.state_dir, artifact_id, target.tool, render_file)
@@ -82,11 +84,10 @@ def project_canonical(
     # every displaced byte is archived — now, and only now, overwrite.
     record = execution.records.get(artifact_id, ArtifactRecord())
     written_surfaces = dict(record.surfaces)
-    for target, render_file, new_text in pending_writes:
-        write_text_atomic(render_file, new_text)
+    for target, _render_file, new_text in pending_writes:
         written_surfaces[target.tool] = RecordedSurface(
             location=target.location,
-            content_digest=surface_content_digest(new_text, target),
+            content_digest=write_surface_content(target, new_text, canonical.auxiliary_files),
         )
     if pending_writes:
         execution.records[artifact_id] = replace(

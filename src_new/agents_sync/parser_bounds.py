@@ -37,6 +37,16 @@ MAX_FRONTMATTER_BYTES: int = 256 * 1024
 """Markdown front-matter scan-window ceiling (256 KiB); the leading slice the
 front-matter regex is allowed to examine."""
 
+MAX_SKILL_AUXILIARY_FILES: int = 1_000
+"""Cap on auxiliary files in one skill folder (S23i). A skill is a hand-authored
+folder; a tree beyond this is a mis-pointed root (a home directory, a checkout),
+not a skill, and adopting it would copy that tree onto every other tool."""
+
+MAX_SKILL_FOLDER_BYTES: int = 32 * 1024 * 1024
+"""Cap on a skill folder's total auxiliary bytes (32 MiB). Bounds the whole tree,
+not just each file: a thousand files each under the per-file ceiling would
+otherwise be admissible, and the folder is loaded whole into one canonical."""
+
 MAX_YAML_ALIAS_RESOLUTIONS: int = 10_000
 """Cap on node compositions per YAML document. Defeats quadratic billion-laughs
 even though ruamel's round-trip loader resolves aliases by reference, not by
@@ -82,6 +92,29 @@ def read_text_bounded(
             f"{effective_label}: file size {size} bytes exceeds MAX_PARSE_BYTES ({limit} bytes)"
         )
     return path.read_text(encoding=encoding)
+
+
+def read_bytes_bounded(
+    path: Path,
+    *,
+    label: str | None = None,
+    limit: int = MAX_PARSE_BYTES,
+) -> bytes:
+    """Read ``path`` as raw bytes, rejecting files larger than ``limit``.
+
+    The byte-oriented counterpart of :func:`read_text_bounded`, for content the
+    daemon carries verbatim rather than parses — a skill's auxiliary files, which
+    may be binary (NFR-06 requires byte preservation, so they are never decoded).
+    The ``stat()`` check runs BEFORE the read, so a hostile file never lands in
+    memory.
+    """
+    effective_label = label if label is not None else str(path)
+    size = path.stat().st_size
+    if size > limit:
+        raise ParserBoundsExceeded(
+            f"{effective_label}: file size {size} bytes exceeds MAX_PARSE_BYTES ({limit} bytes)"
+        )
+    return path.read_bytes()
 
 
 def enforce_frontmatter_window(text: str) -> str:
