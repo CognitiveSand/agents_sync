@@ -25,7 +25,7 @@ from __future__ import annotations
 # file is held back). Matched as case-insensitive, slash-normalised substrings, so
 # ``~/.claude/skills`` trips ``.claude/``. Scope is tool-private dirs only (not IDE or
 # repo dirs like ``.github/``), keeping the false-positive rate low. When tools become
-# data (S20) these derive from the per-tool roots; until then they live here, per YAGNI.
+# data (S20) these derive from the per-tool directories; until then they live here, per YAGNI.
 FRAMEWORK_SPECIFIC_PATH_TOKENS: tuple[str, ...] = (
     ".claude/",
     ".codex/",

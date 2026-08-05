@@ -78,14 +78,14 @@ class RulesFileSurfaceSpec:
 
 @dataclass(frozen=True)
 class SkillFolderSurfaceSpec:
-    """Skills: every ``<slug>/SKILL.md`` under ``root`` is one surface (FR-06, S23f).
+    """Skills: every ``<slug>/SKILL.md`` under ``directory`` is one surface (FR-06, S23f).
 
     Identity is the SKILL.md's embedded ``pair_id`` (the folder name is cosmetic). A
     skill folder carrying anything besides its ``SKILL.md`` is frozen (deferred S23i)."""
 
     tool: str
     kind: str
-    root: Path
+    directory: Path
     surface_format: SurfaceFormat
 
 
@@ -133,17 +133,17 @@ def _observe_directory(
 def _observe_skill_folder(
     spec: SkillFolderSurfaceSpec, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
-    """Every ``<slug>/SKILL.md`` under the skill root is one surface (FR-06).
+    """Every ``<slug>/SKILL.md`` under the skill directory is one surface (FR-06).
 
     The folder is the artifact, so the files beside ``SKILL.md`` are read as the
     document's ``auxiliary_files`` (S23i) and folded into the surface digest. A
     folder that breaches the size bounds is frozen rather than partly adopted:
     the error is caught per folder into a ``ParseFailure`` — loud but isolated
     (FR-02), exactly like ``_resolve_rules_imports_in``'s import failures."""
-    if not spec.root.is_dir():
+    if not spec.directory.is_dir():
         return []
     observations: list[SurfaceObservation] = []
-    for skill_dir in sorted(spec.root.iterdir()):
+    for skill_dir in sorted(spec.directory.iterdir()):
         if not skill_dir.is_dir():
             continue
         skill_md = skill_dir / SKILL_FILENAME
@@ -368,15 +368,16 @@ def projection_surfaces(
     The read phase observes what *is* on disk; this derives what *should* be there —
     the surface an artifact would occupy on a tool that does not yet hold it. It is
     what lets the planner extend an artifact onto a tool with no copy (Goal 1) and
-    re-extend onto one whose root has returned (US-11 AC-3), neither of which can be
+    re-extend onto one whose directory has returned (US-11 AC-3), neither of which can be
     expressed by observed surfaces alone.
 
     Deriving the location from ``slugify_name(name)`` — the same slug the
     reconciliation key uses — is what keeps minting safe: two artifacts that would
     land on one path necessarily share a key, so the planner's existing collision
     guard already refuses them and no minted write can silently displace another
-    artifact. A spec whose root does not exist yields nothing: an absent root means
-    the tool is not installed (US-11), and syncing must never create one.
+    artifact. A spec whose directory does not exist yields nothing: an absent
+    directory means the tool is not installed (US-11), and syncing must never
+    create one.
     """
     slug = slugify_name(name)
     surfaces: list[ToolSurface] = []
@@ -390,15 +391,15 @@ def projection_surfaces(
 
 
 def _projection_location(spec: SurfaceSpec, slug: str, name: str) -> Path | KeyedMapSlot | None:
-    """The location ``spec`` would give an artifact, or ``None`` if its root is absent."""
+    """The location ``spec`` would give an artifact, or ``None`` if its directory is absent."""
     if isinstance(spec, DirectorySurfaceSpec):
         if not spec.directory.is_dir():
             return None
         return spec.directory / f"{slug}{spec.filename_suffix}"
     if isinstance(spec, SkillFolderSurfaceSpec):
-        if not spec.root.is_dir():
+        if not spec.directory.is_dir():
             return None
-        return spec.root / slug / SKILL_FILENAME
+        return spec.directory / slug / SKILL_FILENAME
     if isinstance(spec, RulesFileSurfaceSpec):
         if not spec.directory.is_dir():
             return None

@@ -39,7 +39,7 @@ front-matter regex is allowed to examine."""
 
 MAX_SKILL_AUXILIARY_FILES: int = 1_000
 """Cap on auxiliary files in one skill folder (S23i). A skill is a hand-authored
-folder; a tree beyond this is a mis-pointed root (a home directory, a checkout),
+folder; a tree beyond this is a mis-pointed directory (a home directory, a checkout),
 not a skill, and adopting it would copy that tree onto every other tool."""
 
 MAX_SKILL_FOLDER_BYTES: int = 32 * 1024 * 1024

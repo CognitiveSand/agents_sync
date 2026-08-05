@@ -35,7 +35,7 @@ declaration answers three questions:
    supported type it participates in customization_artifacts of that type; for
    unsupported types it is invisible to the sync algorithm.
 2. **Where the files are.** Per supported customization_type, it declares the
-   configuration key naming the on-disk root directory, plus a file-layout
+   configuration key naming the on-disk directory, plus a file-layout
    descriptor for that type (single-file, e.g. an `.md` or `.toml`, for `agent`;
    a folder containing a designated rendered file, e.g. `SKILL.md`, for `skill`).
 3. **How to translate to and from the canonical form.** Per supported
@@ -56,7 +56,7 @@ implementation-level contract.
   (per `docs/agentic_tool_integration_protocol.md`) that declares the tool's
   unique `name`, its supported customization_types, how to translate each
   supported type to and from the canonical form and recover its id in isolation,
-  the configuration keys naming the on-disk roots per type, and the file-layout
+  the configuration keys naming the on-disk directories per type, and the file-layout
   descriptor per type.
 
 - [ ] AC-2 [Normal]: Given a new agentic_tool integration module is added to the
@@ -86,14 +86,14 @@ implementation-level contract.
   (`state.customization_artifacts[<customization_artifact_id>].agentic_tools[<name>]`).
 
 - [ ] AC-6 [Normal — well-formed integration]: Given a tool's integration
-  declaration provides, for every supported customization_type, a root, a
+  declaration provides, for every supported customization_type, a directory, a
   file-layout descriptor, and a complete canonical translation (read, write, and
   id-recovery), When the agentic_tools_registry is built at startup, Then the
   tool is registered and participates in those customization_types.
 
 - [ ] AC-7 [Failure — incoherent integration]: Given a tool's integration
   declaration is incomplete — a supported customization_type whose canonical
-  translation is incomplete, a declared root with no matching supported type, or
+  translation is incomplete, a declared directory with no matching supported type, or
   a translation lacking a file-layout descriptor — When the agentic_tools_registry
   is built, Then construction fails closed with a structured error naming the
   tool and the offending customization_types (per NFR-13), and the daemon exits
@@ -109,7 +109,7 @@ implementation-level contract.
   from discovery, sync, conflict resolution, and removal propagation, and no log
   line is emitted about its absence at any time. (Disabling an agentic_tool is a
   deliberate, silent choice; see US-11 for the distinct case of an enabled
-  agentic_tool whose root is missing.)
+  agentic_tool whose directory is missing.)
 
 ## Notes
 
@@ -126,7 +126,7 @@ algorithm, the design has failed.
 
 This story addresses only the **structural** ability to register an
 agentic_tool. It does not address the runtime behaviour when a registered
-agentic_tool's root is missing or unreadable; that is US-11's responsibility.
+agentic_tool's directory is missing or unreadable; that is US-11's responsibility.
 
 Related requirements: NFR-11 (extensibility — load-bearing for AC-2), NFR-13
 (structured error reporting — AC-7). Realises description goal 5 (agentic_tool

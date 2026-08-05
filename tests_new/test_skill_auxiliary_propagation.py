@@ -45,8 +45,8 @@ def _skill_workspace(tmp_path: Path) -> tuple[Path, Path, Path, dict[str, Path]]
     return state_dir, claude_skills, cursor_skills, resolved
 
 
-def _plant_skill(root: Path, slug: str = "demo", body: str = "Body.\n") -> Path:
-    folder = root / slug
+def _plant_skill(directory: Path, slug: str = "demo", body: str = "Body.\n") -> Path:
+    folder = directory / slug
     (folder / "references").mkdir(parents=True, exist_ok=True)
     (folder / "SKILL.md").write_text(f"---\nname: {slug}\n---\n{body}", encoding="utf-8")
     (folder / AUXILIARY_RELATIVE_PATH).write_text(AUXILIARY_CONTENT, encoding="utf-8")

@@ -5,7 +5,7 @@ reconciles each imported canonical against the local one by the single
 ``last_modified_wins`` rule (FR-12): the newer content prevails, ties favour the
 local artifact. The imported ``last_modified`` is preserved, so re-importing an
 unchanged library is a no-op (FR-12 idempotency). Import writes the canonical store
-only — never ``state.json`` or any tool root — so the next poll adopts each new
+only — never ``state.json`` or any tool directory — so the next poll adopts each new
 canonical (FR-16/AC-5). A malformed export aborts before any write (AC-9); a
 displaced local canonical is archived first when its content changes (NFR-01/07).
 The receiver's secret policy governs the import egress (AC-15/16). Real filesystem
@@ -243,9 +243,9 @@ def test_import_aborts_on_an_id_filename_mismatch(tmp_path: Path) -> None:
         tmp_path / "lib.zip",
         {
             "manifest.json": _manifest_bytes(),
-            f"canonical/{_ID_A}.json": json.dumps(
-                {"artifact_id": _ID_B, "kind": "agent"}
-            ).encode("utf-8"),
+            f"canonical/{_ID_A}.json": json.dumps({"artifact_id": _ID_B, "kind": "agent"}).encode(
+                "utf-8"
+            ),
         },
     )
     target = tmp_path / "target"

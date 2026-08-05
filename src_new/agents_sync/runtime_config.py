@@ -53,16 +53,16 @@ class RuntimeConfig:
 # --- platform anchors (pure) ----------------------------------------------------------
 
 
-def _windows_root(
+def _windows_base_directory(
     env_var: str, profile_parts: tuple[str, ...], env: Mapping[str, str], home: Path
 ) -> Path:
     raw = env.get(env_var)
     return Path(raw) if raw else home.joinpath(*profile_parts)
 
 
-def _config_root(*, os_name: str, env: Mapping[str, str], home: Path) -> Path:
+def _config_directory(*, os_name: str, env: Mapping[str, str], home: Path) -> Path:
     if os_name == "nt":
-        return _windows_root("APPDATA", ("AppData", "Roaming"), env, home)
+        return _windows_base_directory("APPDATA", ("AppData", "Roaming"), env, home)
     return home / ".config"
 
 
@@ -71,19 +71,19 @@ def _resolve_anchor(
 ) -> Path:
     if anchor is PathAnchor.HOME:
         return home
-    elif anchor is PathAnchor.CONFIG_ROOT:
-        return _config_root(os_name=os_name, env=env, home=home)
+    elif anchor is PathAnchor.CONFIG_DIRECTORY:
+        return _config_directory(os_name=os_name, env=env, home=home)
     assert_never(anchor)
 
 
 def default_config_path(*, os_name: str, env: Mapping[str, str], home: Path) -> Path:
-    return _config_root(os_name=os_name, env=env, home=home) / _APP_DIR_NAME / "config.toml"
+    return _config_directory(os_name=os_name, env=env, home=home) / _APP_DIR_NAME / "config.toml"
 
 
 def default_state_path(*, os_name: str, env: Mapping[str, str], home: Path) -> Path:
     if os_name == "nt":
-        root = _windows_root("LOCALAPPDATA", ("AppData", "Local"), env, home)
-        return root / _APP_DIR_NAME / "state" / "state.json"
+        base_directory = _windows_base_directory("LOCALAPPDATA", ("AppData", "Local"), env, home)
+        return base_directory / _APP_DIR_NAME / "state" / "state.json"
     return home / ".local" / "state" / _APP_DIR_NAME / "state.json"
 
 

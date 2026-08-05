@@ -4,12 +4,12 @@ The rebuild propagated edits *among* the tools already holding an artifact but n
 created one on a tool that lacked it: projection targets came from observed surfaces,
 and a tool with no copy produces no observation. That left the product's headline
 promise — edit anywhere, appears everywhere — unimplemented for every kind, and it
-also left US-11 AC-3 (re-extend onto a tool whose root returned) unreachable.
+also left US-11 AC-3 (re-extend onto a tool whose directory returned) unreachable.
 
 The fix derives, per artifact, where it *should* live on every supporting tool whose
-root exists, and treats an unoccupied expected surface as a projection target. These
+directory exists, and treats an unoccupied expected surface as a projection target. These
 tests pin the promise and the two things it must not break: a deliberate removal must
-never come back as an extension, and an absent root must never be created.
+never come back as an extension, and an absent directory must never be created.
 """
 
 from __future__ import annotations
@@ -115,8 +115,8 @@ def test_a_deliberate_removal_is_not_undone_by_extension(tmp_path: Path) -> None
     assert not (claude / "helper.md").exists(), "the deleted copy was recreated"
 
 
-def test_an_absent_tool_root_is_never_created(tmp_path: Path) -> None:
-    # US-11: a missing root means the tool is not installed. Syncing must not install
+def test_an_absent_tool_directory_is_never_created(tmp_path: Path) -> None:
+    # US-11: a missing directory means the tool is not installed. Syncing must not install
     # it — that would scatter files into directories the user never opted into.
     state_dir, claude, cursor, resolved = _workspace(tmp_path)
     (claude / "helper.md").write_text(_agent())
@@ -131,21 +131,21 @@ def test_an_absent_tool_root_is_never_created(tmp_path: Path) -> None:
     strict=True,
     reason=(
         "Blocked by a separate, pre-existing defect shared with the legacy tree: a "
-        "recorded tool whose root returns EMPTY is read as a deletion, so the artifact "
+        "recorded tool whose directory returns EMPTY is read as a deletion, so the artifact "
         "is removed from every healthy tool before the extension rule is reached "
         "(_has_vanished_surface short-circuits). Bytes survive in the archive (NFR-01) "
         "but the artifact disappears everywhere. Recorded in the cutover register; "
         "needs a US-11 availability decision, not a change here."
     ),
 )
-def test_an_artifact_re_extends_when_a_tool_root_returns(tmp_path: Path) -> None:
-    """US-11 AC-3: a tool whose root vanished is not a removal source, and when the
-    root comes back the artifact is projected onto it again."""
+def test_an_artifact_re_extends_when_a_tool_directory_returns(tmp_path: Path) -> None:
+    """US-11 AC-3: a tool whose directory vanished is not a removal source, and when the
+    directory comes back the artifact is projected onto it again."""
     state_dir, claude, cursor, resolved = _workspace(tmp_path)
     (claude / "helper.md").write_text(_agent())
     state = _settle(state_dir, resolved, SyncState())
 
-    shutil.rmtree(cursor)  # the tool is uninstalled / its root unmounts
+    shutil.rmtree(cursor)  # the tool is uninstalled / its directory unmounts
     state = _settle(state_dir, resolved, state)
     assert (claude / "helper.md").exists(), "an absent tool must not source a removal"
 

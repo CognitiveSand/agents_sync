@@ -35,7 +35,8 @@ WINDOWS_ENV = {
 
 # --- pure platform resolution ---------------------------------------------------------
 
-def test_resolve_default_paths_posix_anchors_home_and_config_root() -> None:
+
+def test_resolve_default_paths_posix_anchors_home_and_config_directory() -> None:
     home = Path("/home/tester")
     paths = resolve_default_paths(ALL_TOOL_DEFINITIONS, os_name="posix", env={}, home=home)
 
@@ -43,7 +44,7 @@ def test_resolve_default_paths_posix_anchors_home_and_config_root() -> None:
     assert paths["claude_agents_dir"] == home / ".claude" / "agents"
     assert paths["claude_rules_dir"] == home / ".claude"
     assert paths["claude_mcp_servers_file"] == home / ".claude.json"
-    # opencode is the only CONFIG_ROOT-anchored tool: ~/.config on POSIX.
+    # opencode is the only CONFIG_DIRECTORY-anchored tool: ~/.config on POSIX.
     assert paths["opencode_agents_dir"] == home / ".config" / "opencode" / "agents"
     assert paths["opencode_config_file"] == home / ".config" / "opencode" / "opencode.json"
 
@@ -57,11 +58,9 @@ def test_resolve_default_paths_omits_surfaces_without_a_default() -> None:
     assert "copilot_vscode_user_instructions_dir" not in paths
 
 
-def test_resolve_default_paths_windows_routes_config_root_to_appdata() -> None:
+def test_resolve_default_paths_windows_routes_config_directory_to_appdata() -> None:
     home = Path(r"C:\Users\tester")
-    paths = resolve_default_paths(
-        ALL_TOOL_DEFINITIONS, os_name="nt", env=WINDOWS_ENV, home=home
-    )
+    paths = resolve_default_paths(ALL_TOOL_DEFINITIONS, os_name="nt", env=WINDOWS_ENV, home=home)
 
     appdata = Path(WINDOWS_ENV["APPDATA"])
     assert paths["opencode_agents_dir"] == appdata / "opencode" / "agents"
@@ -103,6 +102,7 @@ def test_windows_paths_fall_back_to_profile_when_env_missing() -> None:
 
 
 # --- load / merge ---------------------------------------------------------------------
+
 
 def test_load_defaults_when_no_config_file_present(tmp_path: Path) -> None:
     cfg = load_runtime_config(config_path=None, os_name="posix", env={}, home=tmp_path)
@@ -147,6 +147,7 @@ def test_toml_can_supply_a_surface_that_has_no_default(tmp_path: Path) -> None:
 
 # --- fail closed (US-07 AC-7) ---------------------------------------------------------
 
+
 def test_malformed_toml_fails_closed(tmp_path: Path) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text("this is = = not toml")
@@ -156,9 +157,7 @@ def test_malformed_toml_fails_closed(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("value", ["0", "-1", '"abc"'])
-def test_non_positive_or_non_numeric_poll_interval_fails_closed(
-    tmp_path: Path, value: str
-) -> None:
+def test_non_positive_or_non_numeric_poll_interval_fails_closed(tmp_path: Path, value: str) -> None:
     config_file = tmp_path / "config.toml"
     config_file.write_text(f"[agents-sync]\npoll_interval_seconds = {value}\n")
 
@@ -222,6 +221,7 @@ def test_uncreatable_state_path_parent_fails_closed(tmp_path: Path) -> None:
 
 
 # --- distinct exit codes (NFR-10) -----------------------------------------------------
+
 
 def test_exit_codes_are_distinct_and_pinned() -> None:
     assert EXIT_OK == 0

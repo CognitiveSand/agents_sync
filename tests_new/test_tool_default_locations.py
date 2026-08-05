@@ -24,7 +24,7 @@ from agents_sync.tools.tool_definition import (
 )
 
 HOME = PathAnchor.HOME
-CONFIG_ROOT = PathAnchor.CONFIG_ROOT
+CONFIG_DIRECTORY = PathAnchor.CONFIG_DIRECTORY
 
 # config_key -> the default location the tool data must declare. ``None`` means the
 # surface has no built-in default: it is absent unless the config file names a path.
@@ -59,13 +59,13 @@ EXPECTED_DEFAULT_LOCATIONS: dict[str, DefaultLocation | None] = {
     "gemini_cli_rules_dir": DefaultLocation(HOME, (".gemini",)),
     "gemini_cli_settings_file": DefaultLocation(HOME, (".gemini", "settings.json")),
     "gemini_cli_skills_dir": DefaultLocation(HOME, (".gemini", "skills")),
-    # opencode — under the per-OS config root (CONFIG_ROOT: ~/.config or %APPDATA%),
+    # opencode — under the per-OS config root (CONFIG_DIRECTORY: ~/.config or %APPDATA%),
     # the only tool whose default root diverges by operating system.
-    "opencode_agents_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "agents")),
-    "opencode_commands_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "commands")),
-    "opencode_rules_dir": DefaultLocation(CONFIG_ROOT, ("opencode",)),
-    "opencode_config_file": DefaultLocation(CONFIG_ROOT, ("opencode", "opencode.json")),
-    "opencode_skills_dir": DefaultLocation(CONFIG_ROOT, ("opencode", "skills")),
+    "opencode_agents_dir": DefaultLocation(CONFIG_DIRECTORY, ("opencode", "agents")),
+    "opencode_commands_dir": DefaultLocation(CONFIG_DIRECTORY, ("opencode", "commands")),
+    "opencode_rules_dir": DefaultLocation(CONFIG_DIRECTORY, ("opencode",)),
+    "opencode_config_file": DefaultLocation(CONFIG_DIRECTORY, ("opencode", "opencode.json")),
+    "opencode_skills_dir": DefaultLocation(CONFIG_DIRECTORY, ("opencode", "skills")),
     # antigravity — skills only, under ~/.gemini/antigravity
     "antigravity_skills_dir": DefaultLocation(HOME, (".gemini", "antigravity", "skills")),
 }

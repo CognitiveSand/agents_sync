@@ -6,7 +6,7 @@ canonicals, compute the pure ``SyncPlan``, execute it (the executor persists
 canonicals), then persist the updated ``SyncState``. ``sync_once`` derives the
 two-tool destructive guard's ``available_tool_count`` internally from
 ``resolved_paths`` + ``tool_definitions`` via ``count_available_tools`` (a tool is
-available when at least one of its resolved roots exists — the new-model definition
+available when at least one of its resolved directories exists — the new-model definition
 the S24 conformance cutover validates), so the safety count is a single source of
 truth that cannot desync from the paths it summarizes. ``poll_daemon`` drives this
 through ``make_periodic_poll`` (the CLI wires it at S22c).
@@ -45,17 +45,17 @@ def count_available_tools(
     tool_definitions: Iterable[ToolDefinition],
 ) -> int:
     """How many tools are available this poll: a tool is available when at least
-    one of its resolved surface roots exists on disk (US-07 AC-5 / US-11). The
+    one of its resolved surface directories exists on disk (US-07 AC-5 / US-11). The
     two-tool destructive guard reads this count. (New-model definition; the S24
     conformance cutover validates it against the two-tool-guard suite.)"""
     available = 0
     for definition in tool_definitions:
-        roots = [
+        directories = [
             resolved_paths[recipe.config_key]
             for recipe in definition.surface_recipes
             if recipe.config_key in resolved_paths
         ]
-        if any(root.exists() for root in roots):
+        if any(directory.exists() for directory in directories):
             available += 1
     return available
 
@@ -142,7 +142,7 @@ def _expected_surfaces(
     specs: tuple[SurfaceSpec, ...],
     stored: Mapping[str, _StoredCanonical | None],
 ) -> dict[str, tuple[ToolSurface, ...]]:
-    """Where each stored artifact belongs on every supporting tool whose root exists.
+    """Where each stored artifact belongs on every supporting tool whose directory exists.
 
     Derived from the same specs the read phase walked and the artifact's stored name,
     so the planner can extend an artifact onto a tool holding no copy of it (Goal 1)

@@ -26,7 +26,7 @@ from agents_sync.tools.tool_definition import (
     ToolDefinition,
 )
 
-_CONFIG_ROOT = PathAnchor.CONFIG_ROOT
+_CONFIG_DIRECTORY = PathAnchor.CONFIG_DIRECTORY
 
 _MCP_SPELLING = McpSpellingRecipe(
     env_field="environment",
@@ -52,34 +52,34 @@ OPENCODE_TOOL = ToolDefinition(
             "opencode_agents_dir",
             ".md",
             markdown_surface_format(),
-            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "agents")),
+            default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "agents")),
         ),
         DirectorySurfaceRecipe(
             "slash_command",
             "opencode_commands_dir",
             ".md",
             markdown_surface_format(),
-            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "commands")),
+            default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "commands")),
         ),
         RulesFileSurfaceRecipe(
             "rules",
             "opencode_rules_dir",
             ("AGENTS.md",),
             markdown_surface_format(),
-            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode",)),
+            default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode",)),
             default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
         KeyedMapSurfaceRecipe(
             "mcp_server",
             "opencode_config_file",
             mcp_surface_format(("mcp",), "json", _MCP_SPELLING),
-            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "opencode.json")),
+            default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "opencode.json")),
         ),
         SkillFolderSurfaceRecipe(
             "skill",
             "opencode_skills_dir",
             markdown_surface_format(),
-            default_location=DefaultLocation(_CONFIG_ROOT, ("opencode", "skills")),
+            default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "skills")),
         ),
     ),
 )

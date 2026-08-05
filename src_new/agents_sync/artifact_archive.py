@@ -142,10 +142,10 @@ def prune_archive(state_dir: Path, *, now: dt.datetime | None = None) -> GcRepor
     """Prune the archive per the tiered policy; ``now`` is injectable for tests."""
     moment = now or dt.datetime.now(tz=dt.UTC)
     report = GcReport()
-    archive_root = state_dir / "archive"
-    if not archive_root.is_dir():
+    archive_directory = state_dir / "archive"
+    if not archive_directory.is_dir():
         return report
-    for artifact_dir in sorted(archive_root.iterdir()):
+    for artifact_dir in sorted(archive_directory.iterdir()):
         if not artifact_dir.is_dir():
             continue
         for side_dir in sorted(artifact_dir.iterdir()):

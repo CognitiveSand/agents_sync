@@ -56,7 +56,7 @@ _NO_EXPECTED_SURFACES: Mapping[str, tuple[ToolSurface, ...]] = {}
 
 _MIN_TOOLS_FOR_DESTRUCTIVE = 2
 # US-11 AC-9: a tool losing this many recorded artifacts in one poll is a glitch (an
-# emptied root, an unmounted overlay), not user deletions — a lone vanish is deliberate.
+# emptied directory, an unmounted overlay), not user deletions — a lone vanish is deliberate.
 _GLITCH_THRESHOLD = 2
 
 
@@ -74,7 +74,7 @@ def compute_sync_plan(
     is how many tools are ``available`` this poll, gating the two-tool guard.
 
     ``expected_surfaces`` maps an ``artifact_id`` to where it belongs on every supporting
-    tool whose root exists — the caller derives it from the surface specs and the stored
+    tool whose directory exists — the caller derives it from the surface specs and the stored
     name (``read_tool_surfaces.projection_surfaces``). It is what lets an artifact reach a
     tool holding no copy of it; omitted, extension is inert and every other rule is
     unaffected.

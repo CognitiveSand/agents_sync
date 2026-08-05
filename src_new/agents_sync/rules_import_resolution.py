@@ -3,7 +3,7 @@
 A rules body line of the form ``@<relative-path>`` inlines the target file's text
 (depth-first, in order) into the *effective* body the read phase propagates; the
 user's directive-bearing source body stays on the origin surface. Imports resolve
-only inside the rules root; an escaping target, a cycle, an unreadable target, or
+only inside the rules directory; an escaping target, a cycle, an unreadable target, or
 nesting beyond the depth limit raises ``RulesImportError`` — malformed content the
 read phase records as a ``ParseFailure`` (freeze, US-15). Lives outside
 ``dialects/`` because resolution reads the filesystem and dialects are pure.
@@ -26,7 +26,7 @@ class RulesImportError(ValueError):
 
 def inline_rules_imports(
     body: str,
-    rules_root: Path,
+    rules_directory: Path,
     *,
     _seen_targets: frozenset[Path] = frozenset(),
     _depth: int = 0,
@@ -36,7 +36,7 @@ def inline_rules_imports(
     Without a directive the body returns verbatim (no reformatting)."""
     if _depth > _MAX_IMPORT_DEPTH:  # the leading-underscore params are recursion plumbing
         raise RulesImportError("rules @import nesting exceeds maximum depth")
-    root_resolved = rules_root.resolve()
+    root_resolved = rules_directory.resolve()
     output_lines: list[str] = []
     had_import = False
     for line in body.splitlines():
@@ -46,9 +46,9 @@ def inline_rules_imports(
             continue
         had_import = True
         relative_target = match.group(1)
-        target = (rules_root / relative_target).resolve()
+        target = (rules_directory / relative_target).resolve()
         if target != root_resolved and root_resolved not in target.parents:
-            raise RulesImportError(f"rules @import escapes the rules root: {relative_target}")
+            raise RulesImportError(f"rules @import escapes the rules directory: {relative_target}")
         if target in _seen_targets:
             raise RulesImportError(f"rules @import cycle detected: {relative_target}")
         try:
@@ -56,7 +56,10 @@ def inline_rules_imports(
         except (OSError, ParserBoundsExceeded) as error:
             raise RulesImportError(f"rules @import target unreadable: {relative_target}") from error
         inlined, _ = inline_rules_imports(
-            imported_text, rules_root, _seen_targets=_seen_targets | {target}, _depth=_depth + 1
+            imported_text,
+            rules_directory,
+            _seen_targets=_seen_targets | {target},
+            _depth=_depth + 1,
         )
         output_lines.append(inlined)
     if not had_import:

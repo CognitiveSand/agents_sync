@@ -1,14 +1,14 @@
 """A missing file is only evidence of deletion if we looked where it should be.
 
 US-11 AC-4: only an ``available`` agentic_tool can be the source of a removal signal.
-An unreachable root — the tool uninstalled, a drive unmounted — yields the same empty
-result as a root the user emptied, and treating the two alike propagated a removal to
+An unreachable directory — the tool uninstalled, a drive unmounted — yields the same empty
+result as a directory the user emptied, and treating the two alike propagated a removal to
 every healthy tool. With three or more tools installed nothing suppressed it: the
 two-tool destructive guard is a blast-radius limiter for a different requirement, and
 it only masked the defect in the degenerate two-tool case.
 
 The reachability signal is the artifact's expected surfaces, which
-``projection_surfaces`` builds by testing each surface's own root, per kind.
+``projection_surfaces`` builds by testing each surface's own directory, per kind.
 """
 
 from __future__ import annotations
@@ -36,18 +36,18 @@ def _workspace(tmp_path: Path) -> tuple[Path, dict[str, Path], dict[str, Path], 
     state_dir = tmp_path / "state"
     state_dir.mkdir()
     resolved: dict[str, Path] = {}
-    agent_roots: dict[str, Path] = {}
-    skill_roots: dict[str, Path] = {}
+    agent_directories: dict[str, Path] = {}
+    skill_directories: dict[str, Path] = {}
     for name in _THREE_TOOLS:
         agents = tmp_path / name / "agents"
         skills = tmp_path / name / "skills"
         agents.mkdir(parents=True)
         skills.mkdir(parents=True)
-        agent_roots[name] = agents
-        skill_roots[name] = skills
+        agent_directories[name] = agents
+        skill_directories[name] = skills
         resolved[f"{name}_agents_dir"] = agents
         resolved[f"{name}_skills_dir"] = skills
-    return state_dir, resolved, agent_roots, skill_roots
+    return state_dir, resolved, agent_directories, skill_directories
 
 
 def _settle(
@@ -65,45 +65,51 @@ def _settle(
 def _plant_and_settle(
     tmp_path: Path,
 ) -> tuple[Path, dict[str, Path], dict[str, Path], dict[str, Path], SyncState, dict]:
-    state_dir, resolved, agent_roots, skill_roots = _workspace(tmp_path)
-    (agent_roots["claude"] / "helper.md").write_text("---\nname: helper\n---\nBody.\n")
+    state_dir, resolved, agent_directories, skill_directories = _workspace(tmp_path)
+    (agent_directories["claude"] / "helper.md").write_text("---\nname: helper\n---\nBody.\n")
     state, observations = _settle(state_dir, resolved, SyncState(), {})
-    return state_dir, resolved, agent_roots, skill_roots, state, observations
+    return state_dir, resolved, agent_directories, skill_directories, state, observations
 
 
 def test_an_uninstalled_tool_does_not_delete_the_artifact_elsewhere(tmp_path: Path) -> None:
-    state_dir, resolved, agent_roots, _skills, state, observations = _plant_and_settle(tmp_path)
-    assert (agent_roots["claude"] / "helper.md").exists()
+    state_dir, resolved, agent_directories, _skills, state, observations = _plant_and_settle(
+        tmp_path
+    )
+    assert (agent_directories["claude"] / "helper.md").exists()
 
-    shutil.rmtree(agent_roots["cursor"])  # the tool is uninstalled
+    shutil.rmtree(agent_directories["cursor"])  # the tool is uninstalled
     _settle(state_dir, resolved, state, observations)
 
-    assert (agent_roots["claude"] / "helper.md").exists()
+    assert (agent_directories["claude"] / "helper.md").exists()
 
 
 def test_reachability_is_judged_per_kind_not_per_tool(tmp_path: Path) -> None:
-    """A tool whose ``agent`` root vanished while its ``skill`` root survives is still
+    """A tool whose ``agent`` directory vanished while its ``skill`` directory survives is still
     reachable *as a tool*. Judging reachability at tool level would let its agents be
     deleted anyway — the granularity trap the legacy tree documented."""
-    state_dir, resolved, agent_roots, skill_roots, state, observations = _plant_and_settle(tmp_path)
+    state_dir, resolved, agent_directories, skill_directories, state, observations = (
+        _plant_and_settle(tmp_path)
+    )
 
-    shutil.rmtree(agent_roots["cursor"])  # only the agent root goes
-    assert skill_roots["cursor"].is_dir()  # the tool is still reachable overall
+    shutil.rmtree(agent_directories["cursor"])  # only the agent directory goes
+    assert skill_directories["cursor"].is_dir()  # the tool is still reachable overall
     _settle(state_dir, resolved, state, observations)
 
-    assert (agent_roots["claude"] / "helper.md").exists()
+    assert (agent_directories["claude"] / "helper.md").exists()
 
 
-def test_a_deletion_from_a_readable_root_still_propagates(tmp_path: Path) -> None:
-    # The rule must not become "never remove": a file missing from a root we DID read
+def test_a_deletion_from_a_readable_directory_still_propagates(tmp_path: Path) -> None:
+    # The rule must not become "never remove": a file missing from a directory we DID read
     # is a deliberate deletion and still propagates (US-05 AC-2).
-    state_dir, resolved, agent_roots, _skills, state, observations = _plant_and_settle(tmp_path)
-    assert (agent_roots["cursor"] / "helper.md").exists()
+    state_dir, resolved, agent_directories, _skills, state, observations = _plant_and_settle(
+        tmp_path
+    )
+    assert (agent_directories["cursor"] / "helper.md").exists()
 
-    (agent_roots["claude"] / "helper.md").unlink()
+    (agent_directories["claude"] / "helper.md").unlink()
     _settle(state_dir, resolved, state, observations)
 
-    assert not (agent_roots["cursor"] / "helper.md").exists()
+    assert not (agent_directories["cursor"] / "helper.md").exists()
 
 
 def _surface(tool: str) -> ToolSurface:
@@ -134,7 +140,7 @@ def _observed(tool: str) -> SurfaceObservation:
 
 def test_planner_skips_removal_when_the_recorded_tool_is_unreachable() -> None:
     # claude still holds the artifact; cursor is recorded but absent from the expected
-    # surfaces, which is how projection_surfaces reports a root it could not read.
+    # surfaces, which is how projection_surfaces reports a directory it could not read.
     intents = reconcile_known(
         _ARTIFACT_ID,
         [_observed("claude")],
@@ -147,7 +153,7 @@ def test_planner_skips_removal_when_the_recorded_tool_is_unreachable() -> None:
 
 
 def test_planner_still_removes_when_the_recorded_tool_is_reachable() -> None:
-    # Same inputs, except cursor's root WAS readable — so its missing file is a deletion.
+    # Same inputs, except cursor's directory WAS readable — so its missing file is a deletion.
     intents = reconcile_known(
         _ARTIFACT_ID,
         [_observed("claude")],

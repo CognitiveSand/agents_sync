@@ -50,7 +50,7 @@ def read_auxiliary_files(skill_dir: Path) -> dict[str, AuxiliaryFile]:
     POSIX-relative path within the folder (e.g. ``references/detail.md``).
 
     Raises :class:`ParserBoundsExceeded` when the folder exceeds the file-count or
-    total-byte ceiling, so a mis-pointed root is refused loudly instead of being
+    total-byte ceiling, so a mis-pointed directory is refused loudly instead of being
     adopted and copied onto every other tool.
     """
     auxiliary_files: dict[str, AuxiliaryFile] = {}

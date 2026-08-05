@@ -22,11 +22,11 @@ class PathAnchor(Enum):
     """The platform-neutral base a surface's default location is relative to.
 
     ``runtime_config`` (S21b) resolves each anchor to a real directory per OS:
-    ``HOME`` is the user's home directory; ``CONFIG_ROOT`` is the per-OS config
-    dir (``~/.config`` on POSIX, ``%APPDATA%`` on Windows)."""
+    ``HOME`` is the user's home directory; ``CONFIG_DIRECTORY`` is the per-OS
+    configuration directory (``~/.config`` on POSIX, ``%APPDATA%`` on Windows)."""
 
     HOME = "home"
-    CONFIG_ROOT = "config_root"
+    CONFIG_DIRECTORY = "config_directory"
 
 
 @dataclass(frozen=True)

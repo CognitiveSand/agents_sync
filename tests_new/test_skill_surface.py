@@ -1,6 +1,6 @@
 """Skill (SKILL.md-only) customization_type — round-trip, identity, fail-loud (S23f, FR-06).
 
-A ``skill`` is a folder-per-artifact: ``<root>/<slug>/SKILL.md``. The SKILL.md body
+A ``skill`` is a folder-per-artifact: ``<directory>/<slug>/SKILL.md``. The SKILL.md body
 reuses the ``markdown_frontmatter`` dialect (like an agent), so its ``pair_id`` carries
 identity and the folder name is cosmetic. Auxiliary files inside a skill folder are
 deferred to S23i; until then a folder carrying anything besides ``SKILL.md`` is frozen
@@ -29,7 +29,7 @@ _AUX_ID = "22222222-2222-4222-8222-222222222222"
 # §problem-statement; copilot is deliberately absent).
 _SKILL_TOOLS = ("claude", "codex", "cursor", "opencode", "gemini_cli", "antigravity")
 
-# The tool → its resolved skills-root config key.
+# The tool → its resolved skills-directory config key.
 _SKILLS_DIR_KEY = {
     "claude": "claude_skills_dir",
     "codex": "codex_skills_dir",
@@ -56,9 +56,9 @@ def _skill_canonical(name: str = "formatter") -> CanonicalDocument:
     )
 
 
-def _write_skill(root: Path, slug: str, artifact_id: str) -> Path:
-    """Write ``<root>/<slug>/SKILL.md`` with an embedded id; return its folder."""
-    skill_dir = root / slug
+def _write_skill(directory: Path, slug: str, artifact_id: str) -> Path:
+    """Write ``<directory>/<slug>/SKILL.md`` with an embedded id; return its folder."""
+    skill_dir = directory / slug
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
         f"---\npair_id: {artifact_id}\nname: {slug}\n---\nBody of {slug}.\n"
@@ -102,9 +102,9 @@ def test_a_skill_propagates_across_tools(tmp_path: Path) -> None:
 
 
 def test_a_skill_is_observed_by_its_embedded_id(tmp_path: Path) -> None:
-    root = tmp_path / "skills"
-    skill_dir = _write_skill(root, "formatter", _ARTIFACT_ID)
-    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    directory = tmp_path / "skills"
+    skill_dir = _write_skill(directory, "formatter", _ARTIFACT_ID)
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": directory})
 
     observations = read_tool_surfaces(specs)
 
@@ -127,11 +127,11 @@ def test_a_skill_is_observed_by_its_embedded_id(tmp_path: Path) -> None:
 def test_a_skill_with_auxiliary_files_carries_them_on_the_document(tmp_path: Path) -> None:
     # S23i: the folder is the artifact, so files beside SKILL.md are read onto the
     # document rather than freezing it (the S23f deferral this replaces).
-    root = tmp_path / "skills"
-    multi_dir = _write_skill(root, "multi", _AUX_ID)
+    directory = tmp_path / "skills"
+    multi_dir = _write_skill(directory, "multi", _AUX_ID)
     (multi_dir / "helper.py").write_text("print('hi')\n")
-    _write_skill(root, "solo", _ARTIFACT_ID)  # an aux-free sibling in the same root
-    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    _write_skill(directory, "solo", _ARTIFACT_ID)  # an aux-free sibling in the same directory
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": directory})
 
     observations = read_tool_surfaces(specs)
 
@@ -146,11 +146,11 @@ def test_a_skill_with_auxiliary_files_carries_them_on_the_document(tmp_path: Pat
 
 
 def test_auxiliary_files_nest_at_any_depth(tmp_path: Path) -> None:
-    root = tmp_path / "skills"
-    skill_dir = _write_skill(root, "nested", _ARTIFACT_ID)
+    directory = tmp_path / "skills"
+    skill_dir = _write_skill(directory, "nested", _ARTIFACT_ID)
     (skill_dir / "references").mkdir()
     (skill_dir / "references" / "detail.md").write_text("the single home of the detail\n")
-    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": directory})
 
     observations = read_tool_surfaces(specs)
 
@@ -163,10 +163,10 @@ def test_auxiliary_files_nest_at_any_depth(tmp_path: Path) -> None:
 def test_an_edit_to_an_auxiliary_file_changes_the_surface_digest(tmp_path: Path) -> None:
     # Without this the daemon would compare only SKILL.md and a reference edit would
     # never propagate — the folder would silently drift between tools.
-    root = tmp_path / "skills"
-    skill_dir = _write_skill(root, "digest", _ARTIFACT_ID)
+    directory = tmp_path / "skills"
+    skill_dir = _write_skill(directory, "digest", _ARTIFACT_ID)
     (skill_dir / "reference.md").write_text("before\n")
-    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": directory})
     [before] = read_tool_surfaces(specs)
 
     (skill_dir / "reference.md").write_text("after\n")
@@ -178,12 +178,12 @@ def test_an_edit_to_an_auxiliary_file_changes_the_surface_digest(tmp_path: Path)
 def test_os_sidecar_metadata_is_not_carried_as_content(tmp_path: Path) -> None:
     # .DS_Store / AppleDouble files are per-machine Finder state; propagating them
     # onto every other tool would be noise. The legacy tree excluded them too.
-    root = tmp_path / "skills"
-    skill_dir = _write_skill(root, "macos", _ARTIFACT_ID)
+    directory = tmp_path / "skills"
+    skill_dir = _write_skill(directory, "macos", _ARTIFACT_ID)
     (skill_dir / ".DS_Store").write_text("finder metadata")
     (skill_dir / "._asset.png").write_text("appledouble metadata")
     (skill_dir / "real.md").write_text("carried\n")
-    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": root})
+    specs = surface_specs_for(tool_definition("claude"), {"claude_skills_dir": directory})
 
     [observation] = read_tool_surfaces(specs)
 
@@ -197,10 +197,10 @@ def test_os_sidecar_metadata_is_not_carried_as_content(tmp_path: Path) -> None:
 @pytest.mark.parametrize("tool_name", _SKILL_TOOLS)
 def test_every_skill_tool_resolves_a_skill_spec(tool_name: str, tmp_path: Path) -> None:
     # Each skill-supporting tool (incl. the once-inert antigravity) now produces a
-    # SkillFolderSurfaceSpec from its skills root.
+    # SkillFolderSurfaceSpec from its skills directory.
     specs = surface_specs_for(tool_definition(tool_name), {_SKILLS_DIR_KEY[tool_name]: tmp_path})
 
     skill_specs = [spec for spec in specs if spec.kind == "skill"]
     assert len(skill_specs) == 1, f"{tool_name} resolves exactly one skill spec"
     assert isinstance(skill_specs[0], SkillFolderSurfaceSpec)
-    assert skill_specs[0].root == tmp_path
+    assert skill_specs[0].directory == tmp_path

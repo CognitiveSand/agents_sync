@@ -26,9 +26,9 @@ Vocabulary used in this story is defined in the project glossary at `docs/projec
 
 - [ ] AC-4 [Normal — restart resumes state]: Given the daemon is supervised by a user-level service manager, When the daemon is restarted, Then on next start it reads existing state and continues syncing without re-translating unchanged customization_artifacts.
 
-- [ ] AC-5 [Normal — startup with fewer than two agentic_tools available]: Given fewer than two registered + enabled agentic_tools have status `available` at startup (because their roots are missing or unreadable), When the daemon starts, Then it logs each agentic_tool's status per US-11 AC-1, does not exit, and enters a polling loop in which it performs no destructive operations (no propagation, no removal, no adoption) until at least two agentic_tools become `available`.
+- [ ] AC-5 [Normal — startup with fewer than two agentic_tools available]: Given fewer than two registered + enabled agentic_tools have status `available` at startup (because their directories are missing or unreadable), When the daemon starts, Then it logs each agentic_tool's status per US-11 AC-1, does not exit, and enters a polling loop in which it performs no destructive operations (no propagation, no removal, no adoption) until at least two agentic_tools become `available`.
 
-- [ ] AC-6 [Normal — agentic_tools may come and go]: Given the daemon is running with two or more `available` agentic_tools, When the user installs or uninstalls an agentic_tool (causing one of that agentic_tool's configured roots to appear or disappear), Then at the next poll:
+- [ ] AC-6 [Normal — agentic_tools may come and go]: Given the daemon is running with two or more `available` agentic_tools, When the user installs or uninstalls an agentic_tool (causing one of that agentic_tool's configured directories to appear or disappear), Then at the next poll:
   - the agentic_tool's status transitions per US-11 (logged once on the transition);
   - the daemon continues operating;
   - the set of participating agentic_tools for each customization_artifact is recomputed automatically.
@@ -41,7 +41,7 @@ Vocabulary used in this story is defined in the project glossary at `docs/projec
 
 The daemon is the only execution mode; there is no separate one-shot CLI invocation. The polling interval is configurable; propagation latency under nominal conditions includes one poll to detect a change and one poll to write the result.
 
-The v0.3 behaviour was: a missing root for any built-in agentic_tool at startup caused the daemon to exit with a configuration-failure exit code. v0.4 changes this: a missing root is a **runtime** condition (the agentic_tool is `unavailable`), not a **configuration** condition. The daemon stays alive and resumes when the root reappears. The safety property previously provided by the v0.3 exit — "never interpret a missing root as 'all artifacts deleted'" — is now provided by US-11 AC-4 (an `unavailable` agentic_tool never sources a removal signal).
+The v0.3 behaviour was: a missing directory for any built-in agentic_tool at startup caused the daemon to exit with a configuration-failure exit code. v0.4 changes this: a missing directory is a **runtime** condition (the agentic_tool is `unavailable`), not a **configuration** condition. The daemon stays alive and resumes when the directory reappears. The safety property previously provided by the v0.3 exit — "never interpret a missing directory as 'all artifacts deleted'" — is now provided by US-11 AC-4 (an `unavailable` agentic_tool never sources a removal signal).
 
 The "at least two `available` agentic_tools" threshold in AC-5 reflects the obvious reality that sync needs a source and at least one destination. With one agentic_tool available, the daemon has nothing to project to; with zero, nothing to read from. In both degenerate cases the daemon polls quietly and waits.
 

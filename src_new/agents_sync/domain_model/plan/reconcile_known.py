@@ -52,9 +52,9 @@ def reconcile_known(
     skipped (the content/shape decisions still apply).
 
     ``expected_surfaces`` is where this artifact belongs on every supporting tool
-    whose root exists — including tools that hold no copy of it. It is what lets the
-    artifact reach a tool it has never been on (Goal 1) and return to one whose root
-    came back (US-11 AC-3); with the default empty sequence the extension rule is
+    whose directory exists — including tools that hold no copy of it. It is what lets
+    the artifact reach a tool it has never been on (Goal 1) and return to one whose
+    directory came back (US-11 AC-3); with the default empty sequence the rule is
     inert and the pipeline behaves exactly as before.
     """
     if any(isinstance(observation.parsed, ParseFailure) for observation in observations):
@@ -72,7 +72,7 @@ def reconcile_known(
     if missing:
         # Nothing changed, yet a supporting tool has no copy: extend onto it. This is
         # the steady-state half of propagation — a newly adopted artifact reaching the
-        # other tools, and a tool whose root returned being re-extended (US-11 AC-3).
+        # other tools, and a tool whose directory returned being re-extended (US-11 AC-3).
         return (ProjectToTools(artifact_id, missing),)
     return ()
 
@@ -152,19 +152,19 @@ def _has_vanished_surface(
     record: ArtifactRecord,
     expected_surfaces: Sequence[ToolSurface] = (),
 ) -> bool:
-    """True iff a recorded surface is missing from a root we could actually read.
+    """True iff a recorded surface is missing from a directory we could actually read.
 
     A missing file is only evidence of deletion if we looked where it should be. An
-    unreachable root — the tool uninstalled, the drive unmounted — produces the same
-    empty result as a tool the user emptied, and treating the two alike deletes the
-    artifact from every healthy tool (US-11 AC-4: only an ``available`` agentic_tool
-    can source a removal).
+    unreadable directory — the tool uninstalled, the drive unmounted — produces the
+    same empty result as a directory the user emptied, and treating the two alike
+    deletes the artifact from every healthy tool (US-11 AC-4: only an ``available``
+    agentic_tool can cause a removal).
 
     ``expected_surfaces`` already carries that distinction: it is built by
-    ``projection_surfaces``, which skips any surface whose root is absent, per kind —
-    so a tool listed there is one we could look at. Tool-level reachability would not
-    do: a tool whose ``agent`` root vanished while its ``skill`` root survives is
-    still reachable *as a tool*, and its agents would still be deleted.
+    ``projection_surfaces``, which skips any surface whose directory is absent, per
+    kind — so a tool listed there is one we could look at. Judging it per tool would
+    not do: a tool whose ``agent`` directory vanished while its ``skill`` directory
+    survives is still reachable *as a tool*, and its agents would still be deleted.
 
     With no expected surfaces the artifact has no stored canonical to derive them
     from, so reachability is unknown and the historic behaviour stands.

@@ -71,7 +71,7 @@ def test_dash_copilot_does_not_falsely_trip_dot_copilot_token() -> None:
     """``github-copilot/`` must match its own ``.config/github-copilot/`` token, not ``.copilot/``.
 
     The ``-copilot/`` substring is not the ``.copilot/`` token, so a github-copilot path is
-    not mis-attributed to the bare copilot root — the returned token names the real match.
+    not mis-attributed to the bare copilot directory — the returned token names the real match.
     """
     token = detect_framework_specific("~/.config/github-copilot/mcp.json")
     assert token == ".config/github-copilot/"

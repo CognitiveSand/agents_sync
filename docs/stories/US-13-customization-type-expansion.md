@@ -18,9 +18,9 @@ Vocabulary used in this story is defined in the project glossary at `docs/projec
 
 ## Acceptance Criteria
 
-- [ ] AC-1 [Normal]: Given an agentic_tool registers `"rules"` in its `supported_customization_types`, When the user creates a Markdown rule file under the tool's configured rules root, Then within two polling intervals every other available agentic_tool that registers `"rules"` exposes an equivalent rule file under its own configured rules root, with the same `customization_artifact_id` injected and recoverable via that tool's `extract_customization_artifact_id`.
+- [ ] AC-1 [Normal]: Given an agentic_tool registers `"rules"` in its `supported_customization_types`, When the user creates a Markdown rule file under the tool's configured rules directory, Then within two polling intervals every other available agentic_tool that registers `"rules"` exposes an equivalent rule file under its own configured rules directory, with the same `customization_artifact_id` injected and recoverable via that tool's `extract_customization_artifact_id`.
 
-- [ ] AC-2 [Normal]: Given an agentic_tool registers `"slash_command"`, When the user creates a command file under the tool's configured commands root, Then within two polling intervals every other available agentic_tool that registers `"slash_command"` exposes an equivalent command file. Body interpolation grammars (`$ARGUMENTS`, `!`-shell, `@`-file, `{{args}}`, `!{cmd}`, `@{path}`) are preserved byte-for-byte by the renderer.
+- [ ] AC-2 [Normal]: Given an agentic_tool registers `"slash_command"`, When the user creates a command file under the tool's configured commands directory, Then within two polling intervals every other available agentic_tool that registers `"slash_command"` exposes an equivalent command file. Body interpolation grammars (`$ARGUMENTS`, `!`-shell, `@`-file, `{{args}}`, `!{cmd}`, `@{path}`) are preserved byte-for-byte by the renderer.
 
 - [ ] AC-3 [Normal]: Given an agentic_tool registers `"mcp_server"`, When the user adds a new server slot under the tool's `SharedKeyedMapLayout.shared_path`, Then within two polling intervals every other available agentic_tool that registers `"mcp_server"` exposes an equivalent slot under its own shared file, with sibling slots in those files preserved byte-for-byte.
 
