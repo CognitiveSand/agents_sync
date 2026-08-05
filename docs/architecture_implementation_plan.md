@@ -366,7 +366,13 @@ artifacts that would collide already share a key. `compute_sync_plan` stays pure
 derives the expected surfaces from the specs and stored names and passes them as data. Adoption on
 one poll, extension on the next (NFR-02), then settled. Parity probe: Goal 1 passes.
 
-**G-gate-2 — US-11 AC-3 re-extend to a returning tool. STILL OPEN, and NOT the same fix.**
+**G-gate-2 — PARTLY CLOSED (0.7.61, amendment 024).** The severe half is fixed: a removal signal
+now requires a root the read phase could actually read, judged **per kind** via the `expected_surfaces`
+already threaded for cross-tool creation. Uninstalling a tool no longer deletes the artifact from
+every other tool (this was a regression against legacy, which gates on `is_kind_available`). No
+governance change — AC-4 already said it. What remains is only the returning-root residual below.
+
+**G-gate-2 (residual) — US-11 AC-3 re-extend to a returning tool. STILL OPEN.**
 The sweep's remaining failure. A recorded tool whose root returns **empty** is read as a deletion:
 `_has_vanished_surface` short-circuits to `RemoveArtifact` before the extension rule is reached, and
 once the returning root lifts the two-tool guard the removal executes — taking the artifact off

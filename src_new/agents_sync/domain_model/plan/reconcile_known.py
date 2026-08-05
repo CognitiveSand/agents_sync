@@ -61,7 +61,7 @@ def reconcile_known(
         return (FreezeArtifact(artifact_id),)
     if isinstance(stored_canonical, CorruptCanonical):
         return (RebuildCorruptCanonical(artifact_id),)
-    if _has_vanished_surface(observations, record):
+    if _has_vanished_surface(observations, record, expected_surfaces):
         return (RemoveArtifact(artifact_id),)
     changed = [observation for observation in observations if _has_changed(observation, record)]
     if changed:
@@ -150,9 +150,30 @@ def vanished_tools(
 def _has_vanished_surface(
     observations: Sequence[SurfaceObservation],
     record: ArtifactRecord,
+    expected_surfaces: Sequence[ToolSurface] = (),
 ) -> bool:
-    """True iff any recorded tool has no observation this poll — a deleted surface (US-11)."""
-    return bool(vanished_tools(observations, record))
+    """True iff a recorded surface is missing from a root we could actually read.
+
+    A missing file is only evidence of deletion if we looked where it should be. An
+    unreachable root — the tool uninstalled, the drive unmounted — produces the same
+    empty result as a tool the user emptied, and treating the two alike deletes the
+    artifact from every healthy tool (US-11 AC-4: only an ``available`` agentic_tool
+    can source a removal).
+
+    ``expected_surfaces`` already carries that distinction: it is built by
+    ``projection_surfaces``, which skips any surface whose root is absent, per kind —
+    so a tool listed there is one we could look at. Tool-level reachability would not
+    do: a tool whose ``agent`` root vanished while its ``skill`` root survives is
+    still reachable *as a tool*, and its agents would still be deleted.
+
+    With no expected surfaces the artifact has no stored canonical to derive them
+    from, so reachability is unknown and the historic behaviour stands.
+    """
+    vanished = vanished_tools(observations, record)
+    if not expected_surfaces:
+        return bool(vanished)
+    reachable = {surface.tool for surface in expected_surfaces}
+    return any(tool in reachable for tool in vanished)
 
 
 def _has_changed(observation: SurfaceObservation, record: ArtifactRecord) -> bool:
