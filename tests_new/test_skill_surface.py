@@ -15,11 +15,12 @@ import pytest
 
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.tool_surface import ToolSurface
-from agents_sync.read_tool_surfaces import SkillFolderSurfaceSpec, read_tool_surfaces
+from agents_sync.read_tool_surfaces import read_tool_surfaces
 from agents_sync.tools.agentic_tools_registry import (
     surface_specs_for,
     tool_definition,
 )
+from agents_sync.tools.tool_definition import SkillFolderSurfaceRecipe
 from agents_sync.translation import canonical_to_file, extract_artifact_id, file_to_canonical
 
 _ARTIFACT_ID = "11111111-1111-4111-8111-111111111111"
@@ -196,11 +197,11 @@ def test_os_sidecar_metadata_is_not_carried_as_content(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("tool_name", _SKILL_TOOLS)
 def test_every_skill_tool_resolves_a_skill_spec(tool_name: str, tmp_path: Path) -> None:
-    # Each skill-supporting tool (incl. the once-inert antigravity) now produces a
-    # SkillFolderSurfaceSpec from its skills directory.
+    # Each skill-supporting tool (incl. the once-inert antigravity) now resolves a
+    # skill-folder recipe against its skills directory.
     specs = surface_specs_for(tool_definition(tool_name), {_SKILLS_DIR_KEY[tool_name]: tmp_path})
 
-    skill_specs = [spec for spec in specs if spec.kind == "skill"]
-    assert len(skill_specs) == 1, f"{tool_name} resolves exactly one skill spec"
-    assert isinstance(skill_specs[0], SkillFolderSurfaceSpec)
-    assert skill_specs[0].directory == tmp_path
+    skill_specs = [spec for spec in specs if spec.recipe.kind == "skill"]
+    assert len(skill_specs) == 1, f"{tool_name} resolves exactly one skill recipe"
+    assert isinstance(skill_specs[0].recipe, SkillFolderSurfaceRecipe)
+    assert skill_specs[0].path == tmp_path

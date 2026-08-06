@@ -35,10 +35,14 @@ from agents_sync.domain_model.sync_state import ArtifactRecord, RecordedSurface,
 from agents_sync.domain_model.tool_surface import SurfaceFormat, ToolSurface
 from agents_sync.execute_sync_plan import execute_sync_plan
 from agents_sync.read_tool_surfaces import (
-    DirectorySurfaceSpec,
     read_tool_surfaces,
 )
 from agents_sync.secret_policy import SECRET_POLICY_ACCEPTED
+from agents_sync.tools.tool_definition import (
+    DirectorySurfaceRecipe,
+    KeyedMapSurfaceRecipe,
+    ResolvedRecipe,
+)
 
 _ARTIFACT_ID = "11111111-1111-4111-8111-111111111111"
 
@@ -53,13 +57,30 @@ def _agent_text(name: str = "reviewer", body: str = "Be terse.") -> str:
     return f"---\npair_id: {_ARTIFACT_ID}\nname: {name}\n---\n{body}\n"
 
 
-def _spec(directory: Path, tool: str) -> DirectorySurfaceSpec:
-    return DirectorySurfaceSpec(
-        tool=tool,
-        kind="agent",
-        directory=directory,
-        filename_suffix=".md",
-        surface_format=_MARKDOWN,
+def _keyed_map_spec(file: Path, surface_format: SurfaceFormat) -> ResolvedRecipe:
+    return ResolvedRecipe(
+        "cursor",
+        file,
+        KeyedMapSurfaceRecipe(
+            kind="mcp_server",
+            config_key="cursor_mcp_servers_file",
+            surface_format=surface_format,
+            default_location=None,
+        ),
+    )
+
+
+def _spec(directory: Path, tool: str) -> ResolvedRecipe:
+    return ResolvedRecipe(
+        tool,
+        directory,
+        DirectorySurfaceRecipe(
+            kind="agent",
+            config_key=f"{tool}_agents_dir",
+            filename_suffix=".md",
+            surface_format=_MARKDOWN,
+            default_location=None,
+        ),
     )
 
 
@@ -189,15 +210,17 @@ def test_absorb_of_a_secret_bearing_canonical_is_blocked(tmp_path: Path) -> None
             }
         )
     )
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
-
     observations = read_tool_surfaces(
         (
-            KeyedMapSurfaceSpec(
-                tool="cursor",
-                kind="mcp_server",
-                file=mcp_dir / "mcp.json",
-                surface_format=surface.surface_format,
+            ResolvedRecipe(
+                "cursor",
+                mcp_dir / "mcp.json",
+                KeyedMapSurfaceRecipe(
+                    kind="mcp_server",
+                    config_key="cursor_mcp_servers_file",
+                    surface_format=surface.surface_format,
+                    default_location=None,
+                ),
             ),
         )
     )
@@ -323,7 +346,6 @@ def test_a_failing_intent_does_not_abort_the_rest_of_the_plan(tmp_path: Path) ->
 def test_a_projected_slot_reads_back_as_unchanged_next_poll(tmp_path: Path) -> None:
     # The keyed-map analogue of the no-churn invariant: the recorded SLOT digest
     # equals what the read phase observes after the write (NFR-05).
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
 
     state_dir = tmp_path / "state"
     mcp_dir = tmp_path / "mcp"
@@ -342,7 +364,16 @@ def test_a_projected_slot_reads_back_as_unchanged_next_poll(tmp_path: Path) -> N
             command="npx",
         ),
     )
-    spec = KeyedMapSurfaceSpec("cursor", "mcp_server", mcp_dir / "mcp.json", mcp_format)
+    spec = ResolvedRecipe(
+        "cursor",
+        mcp_dir / "mcp.json",
+        KeyedMapSurfaceRecipe(
+            kind="mcp_server",
+            config_key="cursor_mcp_servers_file",
+            surface_format=mcp_format,
+            default_location=None,
+        ),
+    )
     from agents_sync.domain_model.tool_surface import KeyedMapSlot
 
     target = ToolSurface(
@@ -526,9 +557,9 @@ def test_adopt_mints_an_id_and_injects_it_into_every_group_surface(tmp_path: Pat
     validate_artifact_id(minted_id)  # a genuine UUIDv4 was minted
     assert minted_id in (claude_dir / "helper.md").read_text(), "id injected into claude surface"
     assert minted_id in (cursor_dir / "helper.md").read_text(), "id injected into cursor surface"
-    assert isinstance(
-        load_canonical(state_dir, minted_id), CanonicalDocument
-    ), "canonical persisted under the minted id"
+    assert isinstance(load_canonical(state_dir, minted_id), CanonicalDocument), (
+        "canonical persisted under the minted id"
+    )
     assert result.changed == 1, "the adopt is counted as one change"
     assert set(state.records[minted_id].surfaces) == {"claude", "cursor"}, "both surfaces recorded"
 
@@ -567,7 +598,6 @@ def test_two_adopts_mint_distinct_ids(tmp_path: Path) -> None:
 
 def test_adopting_a_secret_bearing_candidate_is_blocked_unminted(tmp_path: Path) -> None:
     from agents_sync.domain_model.sync_plan import AdoptNewArtifact
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
 
     state_dir = tmp_path / "state"
     mcp_dir = tmp_path / "mcp"
@@ -578,9 +608,7 @@ def test_adopting_a_secret_bearing_candidate_is_blocked_unminted(tmp_path: Path)
     (mcp_dir / "mcp.json").write_text(
         json.dumps({"mcpServers": {"github": {"command": "npx", "env": {"T": "hunter2"}}}})
     )
-    observations = read_tool_surfaces(
-        (KeyedMapSurfaceSpec("cursor", "mcp_server", mcp_dir / "mcp.json", mcp_format),)
-    )
+    observations = read_tool_surfaces((_keyed_map_spec(mcp_dir / "mcp.json", mcp_format),))
     plan = SyncPlan(intents=(AdoptNewArtifact(source=observations[0].tool_surface),))
 
     result, state = execute_sync_plan(plan, observations, SyncState(), state_dir)
@@ -687,7 +715,6 @@ def test_rename_relocates_a_slot_and_a_file_in_one_intent(tmp_path: Path) -> Non
     # one transaction, one record update.
     from agents_sync.domain_model.sync_plan import RenameArtifact
     from agents_sync.domain_model.tool_surface import KeyedMapSlot
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
 
     state_dir, claude_dir, cursor_dir = _workspace(tmp_path)
     mcp_format = SurfaceFormat(
@@ -709,7 +736,7 @@ def test_rename_relocates_a_slot_and_a_file_in_one_intent(tmp_path: Path) -> Non
     observations = read_tool_surfaces(
         (
             _spec(claude_dir, "claude"),
-            KeyedMapSurfaceSpec("cursor", "mcp_server", cursor_dir / "mcp.json", mcp_format),
+            _keyed_map_spec(cursor_dir / "mcp.json", mcp_format),
         )
     )
     state = SyncState(
@@ -729,9 +756,9 @@ def test_rename_relocates_a_slot_and_a_file_in_one_intent(tmp_path: Path) -> Non
 
     result, new_state = execute_sync_plan(plan, observations, state, state_dir)
 
-    assert (claude_dir / "critic.md").exists() and not (
-        claude_dir / "reviewer.md"
-    ).exists(), "per-file arm: relocated to the new file and unlinked the old"
+    assert (claude_dir / "critic.md").exists() and not (claude_dir / "reviewer.md").exists(), (
+        "per-file arm: relocated to the new file and unlinked the old"
+    )
     stored_map = json.loads((cursor_dir / "mcp.json").read_text())["mcpServers"]
     assert "critic" in stored_map and "reviewer" not in stored_map, (
         "keyed-map arm: slot rewritten to the new key in the shared file"
@@ -765,7 +792,6 @@ def test_rename_archives_the_old_surfaces(tmp_path: Path) -> None:
 def test_rename_moves_a_keyed_map_slot_preserving_siblings(tmp_path: Path) -> None:
     from agents_sync.domain_model.sync_plan import RenameArtifact
     from agents_sync.domain_model.tool_surface import KeyedMapSlot
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
 
     state_dir = tmp_path / "state"
     mcp_dir = tmp_path / "mcp"
@@ -793,9 +819,7 @@ def test_rename_moves_a_keyed_map_slot_preserving_siblings(tmp_path: Path) -> No
             command="npx",
         ),
     )
-    observations = read_tool_surfaces(
-        (KeyedMapSurfaceSpec("cursor", "mcp_server", mcp_dir / "mcp.json", mcp_format),)
-    )
+    observations = read_tool_surfaces((_keyed_map_spec(mcp_dir / "mcp.json", mcp_format),))
     state = SyncState(
         records={
             _ARTIFACT_ID: ArtifactRecord(
@@ -861,7 +885,6 @@ def test_remove_archives_the_canonical_under_the_reserved_side(tmp_path: Path) -
 def test_remove_deletes_a_keyed_map_slot_preserving_siblings(tmp_path: Path) -> None:
     from agents_sync.domain_model.sync_plan import RemoveArtifact
     from agents_sync.domain_model.tool_surface import KeyedMapSlot
-    from agents_sync.read_tool_surfaces import KeyedMapSurfaceSpec
 
     state_dir = tmp_path / "state"
     mcp_dir = tmp_path / "mcp"
@@ -879,9 +902,7 @@ def test_remove_deletes_a_keyed_map_slot_preserving_siblings(tmp_path: Path) -> 
             }
         )
     )
-    observations = read_tool_surfaces(
-        (KeyedMapSurfaceSpec("cursor", "mcp_server", mcp_dir / "mcp.json", mcp_format),)
-    )
+    observations = read_tool_surfaces((_keyed_map_spec(mcp_dir / "mcp.json", mcp_format),))
     state = SyncState(
         records={
             _ARTIFACT_ID: ArtifactRecord(

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 
 from agents_sync.domain_model.tool_surface import SurfaceFormat
 
@@ -107,6 +108,26 @@ type SurfaceRecipe = (
     | RulesFileSurfaceRecipe
     | SkillFolderSurfaceRecipe
 )
+
+
+@dataclass(frozen=True)
+class ResolvedRecipe:
+    """One recipe with its config key resolved to a real path, for one tool.
+
+    A recipe declares *where to look* symbolically — a config key, a filename
+    suffix, a default location. This pairs it with what that key resolved to on
+    this machine, which is the only thing the read phase needs that the recipe
+    itself cannot know.
+
+    ``path`` is whatever the config key names: a directory for the per-file,
+    rules and skill layouts, the shared file itself for a keyed map. Which of
+    those it is, is the recipe's business — this type deliberately does not
+    restate it, because a wrapper per layout is what this replaces.
+    """
+
+    tool: str
+    path: Path
+    recipe: SurfaceRecipe
 
 
 @dataclass(frozen=True)

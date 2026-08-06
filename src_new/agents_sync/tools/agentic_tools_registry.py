@@ -12,13 +12,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-from agents_sync.read_tool_surfaces import (
-    DirectorySurfaceSpec,
-    KeyedMapSurfaceSpec,
-    RulesFileSurfaceSpec,
-    SkillFolderSurfaceSpec,
-    SurfaceSpec,
-)
 from agents_sync.tools.antigravity import ANTIGRAVITY_TOOL
 from agents_sync.tools.claude import CLAUDE_TOOL
 from agents_sync.tools.codex import CODEX_TOOL
@@ -27,9 +20,7 @@ from agents_sync.tools.cursor import CURSOR_TOOL
 from agents_sync.tools.gemini_cli import GEMINI_CLI_TOOL
 from agents_sync.tools.opencode import OPENCODE_TOOL
 from agents_sync.tools.tool_definition import (
-    DirectorySurfaceRecipe,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
+    ResolvedRecipe,
     ToolDefinition,
 )
 
@@ -58,47 +49,13 @@ def tool_definition(tool_name: str) -> ToolDefinition:
 
 def surface_specs_for(
     definition: ToolDefinition, resolved_paths: Mapping[str, Path]
-) -> tuple[SurfaceSpec, ...]:
-    """The read-phase specs for one tool, given its runtime-resolved paths.
+) -> tuple[ResolvedRecipe, ...]:
+    """This tool's recipes, each paired with what its config key resolved to.
 
     A recipe whose config key is unresolved is skipped — that tool/kind is
     absent on this machine and contributes no surfaces (US-11)."""
-    specs: list[SurfaceSpec] = []
-    for recipe in definition.surface_recipes:
-        resolved_path = resolved_paths.get(recipe.config_key)
-        if resolved_path is None:
-            continue
-        if isinstance(recipe, DirectorySurfaceRecipe):
-            specs.append(
-                DirectorySurfaceSpec(
-                    definition.name,
-                    recipe.kind,
-                    resolved_path,
-                    recipe.filename_suffix,
-                    recipe.surface_format,
-                )
-            )
-        elif isinstance(recipe, RulesFileSurfaceRecipe):
-            specs.append(
-                RulesFileSurfaceSpec(
-                    definition.name,
-                    recipe.kind,
-                    resolved_path,
-                    recipe.candidate_filenames,
-                    recipe.surface_format,
-                    recipe.default_artifact_name,
-                )
-            )
-        elif isinstance(recipe, SkillFolderSurfaceRecipe):
-            specs.append(
-                SkillFolderSurfaceSpec(
-                    definition.name, recipe.kind, resolved_path, recipe.surface_format
-                )
-            )
-        else:
-            specs.append(
-                KeyedMapSurfaceSpec(
-                    definition.name, recipe.kind, resolved_path, recipe.surface_format
-                )
-            )
-    return tuple(specs)
+    return tuple(
+        ResolvedRecipe(definition.name, resolved_paths[recipe.config_key], recipe)
+        for recipe in definition.surface_recipes
+        if recipe.config_key in resolved_paths
+    )

@@ -18,15 +18,17 @@ import pytest
 
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.read_tool_surfaces import (
-    DirectorySurfaceSpec,
-    KeyedMapSurfaceSpec,
-    RulesFileSurfaceSpec,
     read_tool_surfaces,
 )
 from agents_sync.tools.agentic_tools_registry import (
     ALL_TOOL_DEFINITIONS,
     surface_specs_for,
     tool_definition,
+)
+from agents_sync.tools.tool_definition import (
+    DirectorySurfaceRecipe,
+    KeyedMapSurfaceRecipe,
+    RulesFileSurfaceRecipe,
 )
 from agents_sync.translation import canonical_to_file, file_to_canonical
 
@@ -87,28 +89,32 @@ def test_specs_resolve_against_the_provided_paths(tmp_path: Path) -> None:
 
     specs = surface_specs_for(tool_definition("claude"), paths)
 
-    by_kind = {spec.kind: spec for spec in specs}
-    assert isinstance(by_kind["agent"], DirectorySurfaceSpec), "agent resolves to a directory spec"
-    assert by_kind["agent"].directory == tmp_path / "agents", "agent directory resolved from paths"
-    assert isinstance(
-        by_kind["slash_command"], DirectorySurfaceSpec
-    ), "slash_command resolves to a directory spec"
-    assert isinstance(by_kind["rules"], RulesFileSurfaceSpec), "rules resolves to a rules-file spec"
-    assert by_kind["rules"].candidate_filenames == (
+    by_kind = {resolved.recipe.kind: resolved for resolved in specs}
+    assert isinstance(by_kind["agent"].recipe, DirectorySurfaceRecipe), (
+        "agent resolves to a directory recipe"
+    )
+    assert by_kind["agent"].path == tmp_path / "agents", "agent directory resolved from paths"
+    assert isinstance(by_kind["slash_command"].recipe, DirectorySurfaceRecipe), (
+        "slash_command resolves to a directory recipe"
+    )
+    assert isinstance(by_kind["rules"].recipe, RulesFileSurfaceRecipe), (
+        "rules resolves to a rules-file recipe"
+    )
+    assert by_kind["rules"].recipe.candidate_filenames == (
         "AGENTS.md",
         "CLAUDE.md",
     ), "rules candidate filenames in precedence order"
-    assert isinstance(
-        by_kind["mcp_server"], KeyedMapSurfaceSpec
-    ), "mcp_server resolves to a keyed-map spec"
-    assert by_kind["mcp_server"].file == tmp_path / ".claude.json", "mcp_server file resolved"
+    assert isinstance(by_kind["mcp_server"].recipe, KeyedMapSurfaceRecipe), (
+        "mcp_server resolves to a keyed-map recipe"
+    )
+    assert by_kind["mcp_server"].path == tmp_path / ".claude.json", "mcp_server file resolved"
 
 
 def test_a_kind_without_a_resolved_path_is_skipped(tmp_path: Path) -> None:
     # US-11: an absent tool/kind contributes no surfaces and blocks nothing.
     specs = surface_specs_for(tool_definition("claude"), {"claude_agents_dir": tmp_path / "agents"})
 
-    assert {spec.kind for spec in specs} == {"agent"}
+    assert {resolved.recipe.kind for resolved in specs} == {"agent"}
 
 
 def test_gemini_rules_resolve_to_gemini_md_through_the_read_phase(tmp_path: Path) -> None:

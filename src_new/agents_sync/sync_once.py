@@ -27,7 +27,6 @@ from agents_sync.domain_model.tool_surface import ToolSurface
 from agents_sync.execute_sync_plan import execute_sync_plan
 from agents_sync.read_tool_surfaces import (
     PreviousObservations,
-    SurfaceSpec,
     projection_surfaces,
     read_tool_surfaces,
 )
@@ -35,7 +34,7 @@ from agents_sync.runtime_config import RuntimeConfig
 from agents_sync.secret_policy import SECRET_POLICY_REFUSED
 from agents_sync.sync_state_store import load_sync_state, save_sync_state
 from agents_sync.tools.agentic_tools_registry import ALL_TOOL_DEFINITIONS, surface_specs_for
-from agents_sync.tools.tool_definition import ToolDefinition
+from agents_sync.tools.tool_definition import ResolvedRecipe, ToolDefinition
 
 _StoredCanonical = CanonicalDocument | CorruptCanonical
 
@@ -131,15 +130,15 @@ def make_periodic_poll(
 
 def _surface_specs(
     resolved_paths: Mapping[str, Path], tool_definitions: Iterable[ToolDefinition]
-) -> tuple[SurfaceSpec, ...]:
-    specs: list[SurfaceSpec] = []
+) -> tuple[ResolvedRecipe, ...]:
+    specs: list[ResolvedRecipe] = []
     for definition in tool_definitions:
         specs.extend(surface_specs_for(definition, resolved_paths))
     return tuple(specs)
 
 
 def _expected_surfaces(
-    specs: tuple[SurfaceSpec, ...],
+    specs: tuple[ResolvedRecipe, ...],
     stored: Mapping[str, _StoredCanonical | None],
 ) -> dict[str, tuple[ToolSurface, ...]]:
     """Where each stored artifact belongs on every supporting tool whose directory exists.

@@ -17,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +28,7 @@ from agents_sync.domain_model.auxiliary_file import AuxiliaryFile
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
 from agents_sync.domain_model.sync_state import SurfaceLocation
-from agents_sync.domain_model.tool_surface import KeyedMapSlot, SurfaceFormat, ToolSurface
+from agents_sync.domain_model.tool_surface import KeyedMapSlot, ToolSurface
 from agents_sync.parser_bounds import ParserBoundsExceeded, read_text_bounded
 from agents_sync.rules_import_resolution import RulesImportError, inline_rules_imports
 from agents_sync.skill_auxiliary_files import (
@@ -36,102 +36,68 @@ from agents_sync.skill_auxiliary_files import (
     auxiliary_files_digest,
     read_auxiliary_files,
 )
+from agents_sync.tools.tool_definition import (
+    DirectorySurfaceRecipe,
+    KeyedMapSurfaceRecipe,
+    ResolvedRecipe,
+    RulesFileSurfaceRecipe,
+    SkillFolderSurfaceRecipe,
+)
 from agents_sync.translation import extract_artifact_id, file_to_canonical
 
-
-@dataclass(frozen=True)
-class DirectorySurfaceSpec:
-    """Per-file artifacts: every ``filename_suffix`` file in ``directory`` is a surface."""
-
-    tool: str
-    kind: str
-    directory: Path
-    filename_suffix: str
-    surface_format: SurfaceFormat
-
-
-@dataclass(frozen=True)
-class KeyedMapSurfaceSpec:
-    """A shared keyed-map file: every slot under its key path is one surface."""
-
-    tool: str
-    kind: str
-    file: Path
-    surface_format: SurfaceFormat
-
-
-@dataclass(frozen=True)
-class RulesFileSurfaceSpec:
-    """FR-10: the highest-precedence present filename is THE rules surface;
-    a filename not on the declared list is never observed.
-
-    ``default_artifact_name`` names an artifact whose file declares no name — the
-    normal case here, since a whole-file rules document is plain markdown."""
-
-    tool: str
-    kind: str
-    directory: Path
-    candidate_filenames: tuple[str, ...]
-    surface_format: SurfaceFormat
-    default_artifact_name: str = ""
-
-
-@dataclass(frozen=True)
-class SkillFolderSurfaceSpec:
-    """Skills: every ``<slug>/SKILL.md`` under ``directory`` is one surface (FR-06, S23f).
-
-    Identity is the SKILL.md's embedded ``pair_id`` (the folder name is cosmetic). A
-    skill folder carrying anything besides its ``SKILL.md`` is frozen (deferred S23i)."""
-
-    tool: str
-    kind: str
-    directory: Path
-    surface_format: SurfaceFormat
-
-
-type SurfaceSpec = (
-    DirectorySurfaceSpec | KeyedMapSurfaceSpec | RulesFileSurfaceSpec | SkillFolderSurfaceSpec
-)
 type PreviousObservations = Mapping[SurfaceLocation, SurfaceObservation]
 
 _NO_HISTORY: PreviousObservations = {}
 
 
 def read_tool_surfaces(
-    surface_specs: tuple[SurfaceSpec, ...],
+    surface_specs: tuple[ResolvedRecipe, ...],
     previous_observations: PreviousObservations = _NO_HISTORY,
 ) -> tuple[SurfaceObservation, ...]:
-    """Observe every declared surface this poll (the only read-side disk walk)."""
+    """Observe every declared surface this poll (the only read-side disk walk).
+
+    Dispatch is on the recipe's layout — the four layouts differ in how the disk is
+    walked, which is irreducible: a directory of files, a folder per artifact, one
+    file chosen by precedence, and slots inside one shared file."""
     observations: list[SurfaceObservation] = []
-    for spec in surface_specs:
-        if isinstance(spec, DirectorySurfaceSpec):
-            observations.extend(_observe_directory(spec, previous_observations))
-        elif isinstance(spec, KeyedMapSurfaceSpec):
-            observations.extend(_observe_keyed_map(spec, previous_observations))
-        elif isinstance(spec, SkillFolderSurfaceSpec):
-            observations.extend(_observe_skill_folder(spec, previous_observations))
+    for resolved in surface_specs:
+        if isinstance(resolved.recipe, DirectorySurfaceRecipe):
+            observations.extend(_observe_directory(resolved, previous_observations))
+        elif isinstance(resolved.recipe, KeyedMapSurfaceRecipe):
+            observations.extend(_observe_keyed_map(resolved, previous_observations))
+        elif isinstance(resolved.recipe, SkillFolderSurfaceRecipe):
+            observations.extend(_observe_skill_folder(resolved, previous_observations))
         else:
-            observations.extend(_observe_rules_file(spec, previous_observations))
+            observations.extend(_observe_rules_file(resolved, previous_observations))
     return tuple(observations)
+
+
+def _surface_at(resolved: ResolvedRecipe, location: Path | KeyedMapSlot) -> ToolSurface:
+    """The translation coordinates for one artifact found at ``location``."""
+    return ToolSurface(
+        resolved.tool, resolved.recipe.kind, location, resolved.recipe.surface_format
+    )
 
 
 # --- per-file surfaces ----------------------------------------------------------------
 
 
 def _observe_directory(
-    spec: DirectorySurfaceSpec, previous: PreviousObservations
+    resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
-    if not spec.directory.is_dir():
+    recipe = resolved.recipe
+    assert isinstance(recipe, DirectorySurfaceRecipe)
+    if not resolved.path.is_dir():
         return []
     return [
-        _observe_file(ToolSurface(spec.tool, spec.kind, path, spec.surface_format), previous)
-        for path in sorted(spec.directory.iterdir())
-        if path.is_file() and path.name.endswith(spec.filename_suffix)
+        _observe_file(_surface_at(resolved, path), previous)
+        for path in sorted(resolved.path.iterdir())
+        if path.is_file() and path.name.endswith(recipe.filename_suffix)
     ]
 
 
 def _observe_skill_folder(
-    spec: SkillFolderSurfaceSpec, previous: PreviousObservations
+    resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
     """Every ``<slug>/SKILL.md`` under the skill directory is one surface (FR-06).
 
@@ -140,16 +106,16 @@ def _observe_skill_folder(
     folder that breaches the size bounds is frozen rather than partly adopted:
     the error is caught per folder into a ``ParseFailure`` — loud but isolated
     (FR-02), exactly like ``_resolve_rules_imports_in``'s import failures."""
-    if not spec.directory.is_dir():
+    if not resolved.path.is_dir():
         return []
     observations: list[SurfaceObservation] = []
-    for skill_dir in sorted(spec.directory.iterdir()):
+    for skill_dir in sorted(resolved.path.iterdir()):
         if not skill_dir.is_dir():
             continue
         skill_md = skill_dir / SKILL_FILENAME
-        surface = ToolSurface(spec.tool, spec.kind, skill_md, spec.surface_format)
         if not skill_md.is_file():
             continue
+        surface = _surface_at(resolved, skill_md)
         observations.append(_attach_auxiliary_files(_observe_file(surface, previous), skill_dir))
     return observations
 
@@ -185,22 +151,24 @@ def _compose_skill_digest(skill_md_digest: str, auxiliary_digest: str) -> str:
 
 
 def _observe_rules_file(
-    spec: RulesFileSurfaceSpec, previous: PreviousObservations
+    resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
-    for filename in spec.candidate_filenames:  # ordered: first present wins (FR-10)
-        path = spec.directory / filename
+    recipe = resolved.recipe
+    assert isinstance(recipe, RulesFileSurfaceRecipe)
+    for filename in recipe.candidate_filenames:  # ordered: first present wins (FR-10)
+        path = resolved.path / filename
         if path.is_file():
-            surface = ToolSurface(spec.tool, spec.kind, path, spec.surface_format)
+            surface = _surface_at(resolved, path)
             # No reuse cache for rules: imports must re-resolve every poll (an edit
             # behind the pointer is content), and there is at most one rules file
             # per tool, so the saving would be nil anyway.
-            observed = _name_unnamed_artifact(_observe_file(surface, _NO_HISTORY), spec)
-            return [_resolve_rules_imports_in(observed, spec)]
+            observed = _name_unnamed_artifact(_observe_file(surface, _NO_HISTORY), resolved)
+            return [_resolve_rules_imports_in(observed, resolved)]
     return []
 
 
 def _name_unnamed_artifact(
-    observation: SurfaceObservation, spec: RulesFileSurfaceSpec
+    observation: SurfaceObservation, resolved: ResolvedRecipe
 ) -> SurfaceObservation:
     """Give a nameless whole-file rules artifact the name its recipe declares.
 
@@ -210,14 +178,16 @@ def _name_unnamed_artifact(
     knows the recipe, keeps the dialect free of a rules-specific constant. A file
     that *does* declare a name keeps it; nothing overrides the user.
     """
+    recipe = resolved.recipe
+    assert isinstance(recipe, RulesFileSurfaceRecipe)
     parsed = observation.parsed
-    if isinstance(parsed, ParseFailure) or parsed.name or not spec.default_artifact_name:
+    if isinstance(parsed, ParseFailure) or parsed.name or not recipe.default_artifact_name:
         return observation
-    return replace(observation, parsed=replace(parsed, name=spec.default_artifact_name))
+    return replace(observation, parsed=replace(parsed, name=recipe.default_artifact_name))
 
 
 def _resolve_rules_imports_in(
-    observation: SurfaceObservation, spec: RulesFileSurfaceSpec
+    observation: SurfaceObservation, resolved: ResolvedRecipe
 ) -> SurfaceObservation:
     """Split the rules body into source and effective (US-15): ``@import`` directives
     inline into the effective body (what propagates); the user's directive-bearing
@@ -229,13 +199,13 @@ def _resolve_rules_imports_in(
     if isinstance(parsed, ParseFailure):
         return observation
     try:
-        effective_body, had_imports = inline_rules_imports(parsed.body, spec.directory)
+        effective_body, had_imports = inline_rules_imports(parsed.body, resolved.path)
     except RulesImportError as error:
         return replace(observation, parsed=ParseFailure(str(error)))
     if not had_imports:
         return observation
     tool_bags = {tool: dict(bag) for tool, bag in parsed.per_tool_only.items()}
-    tool_bags.setdefault(spec.tool, {})["rules_source_body"] = parsed.body
+    tool_bags.setdefault(resolved.tool, {})["rules_source_body"] = parsed.body
     return replace(
         observation,
         content_digest=_text_digest(f"{observation.content_digest}\0{effective_body}"),
@@ -273,24 +243,25 @@ def _observe_file(tool_surface: ToolSurface, previous: PreviousObservations) -> 
 
 
 def _observe_keyed_map(
-    spec: KeyedMapSurfaceSpec, previous: PreviousObservations
+    resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
-    if not spec.file.is_file():
+    surface_format = resolved.recipe.surface_format
+    if not resolved.path.is_file():
         return []
-    modified_time = _modified_time(spec.file)
+    modified_time = _modified_time(resolved.path)
     try:
-        text = read_text_bounded(spec.file)
+        text = read_text_bounded(resolved.path)
         slot_map = _navigate_slot_map(
-            deserialize(text, spec.surface_format.file_format),
-            spec.surface_format.map_key_path,
+            deserialize(text, surface_format.file_format),
+            surface_format.map_key_path,
         )
     except (OSError, UnicodeDecodeError, MalformedSurfaceError) as error:
-        return _freeze_known_slots(spec, previous, modified_time, str(error))
+        return _freeze_known_slots(resolved, previous, modified_time, str(error))
 
     observations: list[SurfaceObservation] = []
     for slot_key in sorted(slot_map):
-        location = KeyedMapSlot(file=spec.file, slot=slot_key)
-        tool_surface = ToolSurface(spec.tool, spec.kind, location, spec.surface_format)
+        location = KeyedMapSlot(file=resolved.path, slot=slot_key)
+        tool_surface = _surface_at(resolved, location)
         slot_value = slot_map[slot_key]
         content_digest = _slot_digest(slot_value)
         prior = previous.get(location)
@@ -334,7 +305,7 @@ def _navigate_slot_map(root: dict[str, Any], map_key_path: tuple[str, ...]) -> d
 
 
 def _freeze_known_slots(
-    spec: KeyedMapSurfaceSpec,
+    resolved: ResolvedRecipe,
     previous: PreviousObservations,
     modified_time: float,
     reason: str,
@@ -353,7 +324,7 @@ def _freeze_known_slots(
             parsed=ParseFailure(f"keyed-map file no longer deserializes: {reason}"),
         )
         for location, prior in sorted(previous.items(), key=lambda item: str(item[0]))
-        if isinstance(location, KeyedMapSlot) and location.file == spec.file
+        if isinstance(location, KeyedMapSlot) and location.file == resolved.path
     ]
 
 
@@ -361,7 +332,7 @@ def _freeze_known_slots(
 
 
 def projection_surfaces(
-    surface_specs: tuple[SurfaceSpec, ...], kind: str, name: str
+    surface_specs: tuple[ResolvedRecipe, ...], kind: str, name: str
 ) -> tuple[ToolSurface, ...]:
     """Where an artifact of ``kind`` named ``name`` belongs on every declared surface.
 
@@ -381,36 +352,39 @@ def projection_surfaces(
     """
     slug = slugify_name(name)
     surfaces: list[ToolSurface] = []
-    for spec in surface_specs:
-        if spec.kind != kind:
+    for resolved in surface_specs:
+        if resolved.recipe.kind != kind:
             continue
-        location = _projection_location(spec, slug, name)
+        location = _projection_location(resolved, slug, name)
         if location is not None:
-            surfaces.append(ToolSurface(spec.tool, spec.kind, location, spec.surface_format))
+            surfaces.append(_surface_at(resolved, location))
     return tuple(surfaces)
 
 
-def _projection_location(spec: SurfaceSpec, slug: str, name: str) -> Path | KeyedMapSlot | None:
-    """The location ``spec`` would give an artifact, or ``None`` if its directory is absent."""
-    if isinstance(spec, DirectorySurfaceSpec):
-        if not spec.directory.is_dir():
+def _projection_location(
+    resolved: ResolvedRecipe, slug: str, name: str
+) -> Path | KeyedMapSlot | None:
+    """Where ``resolved`` would place an artifact, or ``None`` if its directory is absent."""
+    recipe = resolved.recipe
+    if isinstance(recipe, DirectorySurfaceRecipe):
+        if not resolved.path.is_dir():
             return None
-        return spec.directory / f"{slug}{spec.filename_suffix}"
-    if isinstance(spec, SkillFolderSurfaceSpec):
-        if not spec.directory.is_dir():
+        return resolved.path / f"{slug}{recipe.filename_suffix}"
+    if isinstance(recipe, SkillFolderSurfaceRecipe):
+        if not resolved.path.is_dir():
             return None
-        return spec.directory / slug / SKILL_FILENAME
-    if isinstance(spec, RulesFileSurfaceSpec):
-        if not spec.directory.is_dir():
+        return resolved.path / slug / SKILL_FILENAME
+    if isinstance(recipe, RulesFileSurfaceRecipe):
+        if not resolved.path.is_dir():
             return None
         # FR-10: a rules file that does not exist yet is created under the
         # highest-precedence declared filename (``AGENTS.md`` where offered).
-        return spec.directory / spec.candidate_filenames[0]
-    if not spec.file.parent.is_dir():
+        return resolved.path / recipe.candidate_filenames[0]
+    if not resolved.path.parent.is_dir():
         return None
     # A keyed-map slot is keyed by the artifact's own name, not its slug: the slot key
     # is wire data the tool reads back, not a filesystem basename.
-    return KeyedMapSlot(spec.file, name)
+    return KeyedMapSlot(resolved.path, name)
 
 
 def surface_content_digest(

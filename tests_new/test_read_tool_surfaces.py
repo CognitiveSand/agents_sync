@@ -18,11 +18,12 @@ from pathlib import Path
 from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
 from agents_sync.domain_model.tool_surface import KeyedMapSlot, SurfaceFormat
-from agents_sync.read_tool_surfaces import (
-    DirectorySurfaceSpec,
-    KeyedMapSurfaceSpec,
-    RulesFileSurfaceSpec,
-    read_tool_surfaces,
+from agents_sync.read_tool_surfaces import read_tool_surfaces
+from agents_sync.tools.tool_definition import (
+    DirectorySurfaceRecipe,
+    KeyedMapSurfaceRecipe,
+    ResolvedRecipe,
+    RulesFileSurfaceRecipe,
 )
 
 _EMBEDDED_ID = "11111111-1111-4111-8111-111111111111"
@@ -45,18 +46,31 @@ def _agent_text(name: str = "reviewer", with_id: bool = True) -> str:
     return f"---\n{id_line}name: {name}\n---\nBe terse.\n"
 
 
-def _directory_spec(directory: Path) -> DirectorySurfaceSpec:
-    return DirectorySurfaceSpec(
-        tool="claude",
-        kind="agent",
-        directory=directory,
-        filename_suffix=".md",
-        surface_format=_MARKDOWN,
+def _directory_spec(directory: Path) -> ResolvedRecipe:
+    return ResolvedRecipe(
+        "claude",
+        directory,
+        DirectorySurfaceRecipe(
+            kind="agent",
+            config_key="claude_agents_dir",
+            filename_suffix=".md",
+            surface_format=_MARKDOWN,
+            default_location=None,
+        ),
     )
 
 
-def _keyed_map_spec(file: Path) -> KeyedMapSurfaceSpec:
-    return KeyedMapSurfaceSpec(tool="cursor", kind="mcp_server", file=file, surface_format=_MCP)
+def _keyed_map_spec(file: Path) -> ResolvedRecipe:
+    return ResolvedRecipe(
+        "cursor",
+        file,
+        KeyedMapSurfaceRecipe(
+            kind="mcp_server",
+            config_key="cursor_mcp_servers_file",
+            surface_format=_MCP,
+            default_location=None,
+        ),
+    )
 
 
 def _sentinel(name: str = "sentinel") -> CanonicalDocument:
@@ -331,15 +345,19 @@ def test_a_non_json_representable_slot_value_is_a_parse_failure(tmp_path: Path) 
     # it must surface as a per-slot ParseFailure (freeze), never crash the poll.
     file = tmp_path / "config.toml"
     file.write_text('[mcp_servers.github]\ncommand = "npx"\nreleased = 2024-01-01\n')
-    spec = KeyedMapSurfaceSpec(
-        tool="codex",
-        kind="mcp_server",
-        file=file,
-        surface_format=SurfaceFormat(
-            dialect="mcp_server",
-            id_field="pair_id",
-            map_key_path=("mcp_servers",),
-            file_format="toml",
+    spec = ResolvedRecipe(
+        "codex",
+        file,
+        KeyedMapSurfaceRecipe(
+            kind="mcp_server",
+            config_key="codex_config_file",
+            surface_format=SurfaceFormat(
+                dialect="mcp_server",
+                id_field="pair_id",
+                map_key_path=("mcp_servers",),
+                file_format="toml",
+            ),
+            default_location=None,
         ),
     )
 
@@ -378,14 +396,18 @@ def test_a_missing_keyed_map_file_yields_no_observations(tmp_path: Path) -> None
 # --- rules filename precedence (FR-10) ----------------------------------------------
 
 
-def _rules_spec(directory: Path, default_artifact_name: str = "") -> RulesFileSurfaceSpec:
-    return RulesFileSurfaceSpec(
-        tool="claude",
-        kind="rules",
-        directory=directory,
-        candidate_filenames=("AGENTS.md", "CLAUDE.md"),
-        surface_format=_MARKDOWN,
-        default_artifact_name=default_artifact_name,
+def _rules_spec(directory: Path, default_artifact_name: str = "") -> ResolvedRecipe:
+    return ResolvedRecipe(
+        "claude",
+        directory,
+        RulesFileSurfaceRecipe(
+            kind="rules",
+            config_key="claude_rules_dir",
+            candidate_filenames=("AGENTS.md", "CLAUDE.md"),
+            surface_format=_MARKDOWN,
+            default_location=None,
+            default_artifact_name=default_artifact_name,
+        ),
     )
 
 
