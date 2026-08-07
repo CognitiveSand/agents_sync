@@ -5,9 +5,9 @@
   "defects": [
     {
       "uid": "CD-0001",
-      "owning_activity": "0",
-      "flag": "spec-gap",
-      "title": "US-11 AC-3 (re-extend when a tool directory returns) has no implementation; the test is a strict xfail",
+      "owning_activity": "4.a",
+      "flag": "data-loss-risk",
+      "title": "A tool returning from unavailable is read as a removal source instead of triggering re-extension, destroying the artifact on every tool",
       "file": "tests_new/test_cross_tool_creation.py",
       "line": 130,
       "symbol": "test_an_artifact_re_extends_when_a_tool_directory_returns",
@@ -33,6 +33,17 @@
         "wider_finding": "US-11 AC-3 is phrased entirely as an availability TRANSITION ('Given an agentic_tool's status was unavailable at the previous poll and its directory is present ... at the current poll'). The rebuild does not track per-tool availability across polls at all: sync_once.py:42 count_available_tools computes only a per-poll integer. The transition state was dropped deliberately — the plan records 'Per-tool availability-status transition logging ... Dropped as YAGNI; document the reduced observability. [decision: drop]'. That decision was classified as an observability reduction, but it also orphaned the state US-11 AC-2, AC-3 and AC-5 and NFR-12 are all written in terms of. AC-3 is therefore not merely unbuilt, it is unimplementable as written against the current design. Filed separately as CD-0025.",
         "is_it_live_in_production": "RESOLVED 2026-08-07 — YES, LIVE. Measured against the legacy tree via tmp/probe_legacy_lone_vanish.py, driving the real Syncer.sync_once() from tests/_helpers.make_syncer over a tmp tree under the DEFAULT pytest config (which resolves agents_sync to src/). Same scenario, same outcome: after the cursor agents directory is removed and then recreated empty, claude is EMPTY, cursor is EMPTY, the canonical store is EMPTY, and three further polls heal nothing. The archive holds the only copies (three helper.md entries, one helper.toml, one canonical json — the artifact had propagated to more tools than the two named). Legacy carries the identical rule at src/agents_sync/sync.py:329, `return frozenset(t for t, pids in vanished.items() if len(pids) >= 2)`, so the lone-vanish case is unprotected there too. src/ was read and driven as REFERENCE only; no finding is filed against it and nothing in it was modified. This defect is therefore NOT a pre-cutover concern like CD-0012 — it can destroy a user's artifact today.",
         "live_exposure_conditions": "The glitch guard counts vanished artifacts PER TOOL across all kinds. Exposure requires a tool whose directory disappears and then returns EMPTY while exactly ONE managed artifact was recorded on it — two or more trips the guard and is re-projected safely. Reachable ways to get there: uninstalling and reinstalling an editor; unmounting and remounting a network share or external disk; deleting and recreating a tool's config directory; a tool updater that recreates its directory. A single-artifact tool is the common shape for a narrow-support tool — Antigravity supports only `skill`, so a user syncing one shared skill to it is fully exposed. Users who sync more are protected, which inverts the intuition that heavier users carry more risk."
+      },
+      "reclassification": {
+        "at": "2026-08-07",
+        "during": "0",
+        "in_pass": "0.d",
+        "from": "spec-gap owned by activity 0",
+        "to": "data-loss-risk owned by activity 4.a",
+        "ruled_by": "user",
+        "why": "There is no spec gap. US-11's Notes state the governing rule outright at line 57: 'An agentic_tool returning from `unavailable` to `available` triggers re-extension of every managed customization_artifact the agentic_tool is missing from.' That covers the returning-empty-directory case exactly, and prescribes re-extension, not removal. Line 61 goes further and names the safety property being violated: 'The safety property that motivated that behaviour (do not interpret a missing directory as \"all artifacts deleted\") is now provided by AC-4 of this story.' The code does the opposite of both. Nothing in the specification needs to change.",
+        "orchestrator_error": "The orchestrator twice proposed weakening correct requirements to fit what src_new can currently do — first FR-04, then US-11 AC-4 — and the operator rejected both. The cause was reading the specification through the implementation's limitations, which is the precise failure the specs activity warns against: code is the source of truth for what EXISTS, never for what is CORRECT. Recorded here because it calls the classification of the other activity-0 findings into question, not just this one.",
+        "residual_drafting_note": "AC-3's predicate ('any managed customization_artifact whose state lacks an entry for this agentic_tool') is narrower than the Notes' rule at line 57 ('every managed customization_artifact the agentic_tool is missing from'). The Notes govern; AC-3 under-states them. That is a drafting inconsistency worth a clarification, not a behavioural question — the answer is already decided. Tracked as CD-0090's residue."
       }
     },
     {

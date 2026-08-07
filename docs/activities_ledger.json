@@ -1555,6 +1555,13 @@
         "ruling": "accept with the miss recorded",
         "what_this_means": "Activity 0 is `passed` but its verification is `incomplete`, and that pairing is deliberate. Three full passes — five distinct framings, six sweepers — failed to independently rediscover CD-0001. The finding itself is fully characterised and verified by probe; what is unproven is whether the sweep has OTHER holes of the same shape. Whatever else lives in that hole was never filed by anyone, because nobody happened to trip over it.",
         "how_to_report_it": "Never report activity 0 as simply passed. Every downstream report must carry `verification: incomplete` and the three-pass miss. The status means the ladder was permitted to advance, not that the coverage claim was earned."
+      },
+      "denominator_note": {
+        "recorded_at": "2026-08-07",
+        "what_happened": "CD-0001 was the whole of activity 0's denominator for passes 2 and 3, and half of it for pass 1. It has since been reclassified as a data-loss defect owned by 4.a, because US-11's Notes already state the governing rule and the code simply does not implement it — there was never a spec gap to find.",
+        "implication_for_the_scores": "Three sweeps were scored on failing to find a SPEC GAP that is not one. A sweeper briefed to hunt gaps in the specification would correctly not return CD-0001, so at least part of the recorded miss measures a mis-specified denominator rather than shallow sweeping. Pass 3's remaining denominator entry, CD-0024, WAS a genuine spec gap and WAS rediscovered by all three sweepers.",
+        "what_was_deliberately_not_done": "The pass records keep their original missed_uids and their `incomplete` verifications. They were accurate when written, and rewriting them so the activity scores better would destroy exactly the record the protocol exists to produce. If the verification is to be revised, that is an operator ruling made against this note, not a silent edit.",
+        "open_question_for_the_operator": "Whether activity 0's `verification: incomplete` should stand. Argument for revising to `clean`: the only unrediscovered entry was not a spec gap, and the one that was got found three times over. Argument for leaving it: the sweeps still never surfaced the returning-tool behaviour in ANY form, and a mis-filed denominator is itself evidence that activity 0's classification was unreliable."
       }
     },
     "1.a": {
