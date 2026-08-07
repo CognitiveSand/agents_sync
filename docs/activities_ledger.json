@@ -31,7 +31,7 @@
   "activities": {
     "0": {
       "title": "Specs — requirements and user stories exist, are testable, and cover the code",
-      "status": "needs_deeper_pass",
+      "status": "in_progress",
       "verification": "incomplete",
       "has_deferrals": false,
       "passed_at_sha": null,
@@ -120,6 +120,20 @@
           "lines_removed": 0,
           "expected_direction": "neutral",
           "direction_note": "Analysis only; activity 0 changes no code. No source or test file touched."
+        },
+        {
+          "pass": 2,
+          "type": "deeper",
+          "started": "2026-08-07",
+          "completed": null,
+          "sweeper": "subagent",
+          "open_at_pass_start": 2,
+          "open_at_pass_start_uids": [
+            "CD-0001",
+            "CD-0024"
+          ],
+          "verification": null,
+          "note": "Fresh sweeper, not a continuation of pass 1's — that agent knows what it found and, after the comparison, what it missed. Depth per the protocol: read files end to end rather than searching them, follow call chains across module boundaries. Plus pass 1's method correction: read acceptance criteria against each other and hunt for silences, not only for undocumented behaviour."
         }
       ],
       "defects": [
