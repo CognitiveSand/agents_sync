@@ -188,24 +188,66 @@
       "found_during": "seed",
       "found_in_pass": 0,
       "found_at": "2026-08-07",
-      "status": "open"
+      "status": "deferred",
+      "verification": {
+        "verdict": "corrected",
+        "verified_during": "seed Phase 2.5",
+        "verified_at": "2026-08-07",
+        "development_status": "not_built_yet",
+        "development_status_evidence": "An explicitly scheduled, UNTICKED plan step. docs/architecture_implementation_plan.md:350 — \"| S23g | Rules-surface projection render restore | ... |\" — carries no checkmark, unlike its neighbour \"S23i ✓ (0.7.58)\". Plan lines 165-168 list it under \"Pre-cutover completion\" with [decision: fix before cutover]. The register files it as \"F2 — Rules-surface projection render leak. HIGH / latent correctness bug\". The read half of US-15 was built in src_new; the write half was never ported. The legacy tree DOES implement the restore (src/agents_sync/rules_io.py:260-262), so this is an unported regression against a story marked Implemented, not a mis-implementation.",
+        "method": "Three probes under tmp/ driving the real entry point sync_once over tmp_path tool roots with the real claude + codex registry definitions. Independently re-run by the orchestrator: tmp/probe_rules_import_reprojection.py.",
+        "observed": "Authored ~/.claude/AGENTS.md of \"# My rules\\n@extra.md\\ntail line\\n\" becomes, after POLL 1: front matter carrying pair_id, name, and a literal rules_source_body: \"# My rules\\n@extra.md\\ntail line\" key, over a body of \"# My rules\\nSHARED FRAGMENT LINE\\n\\ntail line\". The live @extra.md directive is gone from the body; the original body is emitted into the user's own front matter as a machine key. Stable thereafter — polls 5 and 6 report changed=0, no churn, no escaping blow-up. The imported extra.md is untouched on disk, and the pre-adoption file is archived byte-for-byte (NFR-01 holds).",
+        "what_was_refuted": "Both the trigger and the severity framing. (1) Reprojection is NOT the trigger and content_intents.py:76 is not the first offender: the defect fires on the FIRST poll via the adoption write at identity_intents.py:66, needing no cross-tool edit — only an @import-bearing rules file present when the daemon starts. So it is MORE reachable than claimed. (2) The finding says bytes survive only in the archive; in fact the original body is written verbatim into the same file as the leaked front-matter key and is also in the canonical, so recovery is in-place. Loss is of the live pointer, not of the bytes.",
+        "what_was_upheld": "grep -rn rules_source_body src_new/ returns exactly one hit — the write at read_tool_surfaces.py:200. Zero consumers. The origin tool is a projection target like any other; no \"don't write back to where it came from\" rule exists.",
+        "root_cause_correction": "The defect is in the SHARED render path — translation.canonical_to_file -> dialects/field_mapping.project_canonical_to_fields:96-97, `for key, value in values[\"per_tool_only\"].get(tool, {}).items(): fields[key] = value` — which copies rules_source_body out as a literal front-matter field instead of consuming it as a render instruction. That path has FOUR call sites: content_intents.py:76 and identity_intents.py:66, :105, :110. None consults rules_source_body.",
+        "severity_revision": "Lowered as loss, raised as reach. HIGH within the pre-cutover set (matching the register's own F2 rating), MEDIUM in absolute terms: no bytes are unrecoverable. The flag data-loss-risk is retained because the user's live directive is destroyed on disk without consent, but the entry no longer claims unrecoverable loss."
+      },
+      "resolution": "Deferred to plan step S23g, which already owns it and is marked fix-before-cutover. Not fixed under the cleaning ladder, because the ladder does not own scheduled build work. Unblocked when S23g lands. Two products of this verification were applied rather than deferred: the S23g plan row's scope was corrected to name the shared render path and all four call sites (it previously named only field_mapping + content_intents, leaving the adopt path that actually fires first out of scope), and the US-15 semantics question the probes exposed is filed as CD-0024.",
+      "resolved_during": null,
+      "resolved_in_pass": null
     },
     {
       "uid": "CD-0012",
       "owning_activity": "4.a",
       "flag": "data-loss-risk",
-      "title": "Rename rmtrees the old skill folder while only its SKILL.md was archived",
+      "title": "Renaming a skill deletes it from every tool and creates nothing in its place",
       "file": "src_new/agents_sync/execute_sync_plan/identity_intents.py",
-      "line": 122,
-      "symbol": "rename_artifact",
-      "evidence": "Phase 1 archives via _archive_surface_bytes -> archive_copy(..., location) with location = <old_slug>/SKILL.md. Phase 2 runs _remove_stale_location(stale) where stale = skill_folder(old_surface), i.e. shutil.rmtree(<old_slug>/). The new folder is rebuilt from load_canonical(...) — the *stored* canonical (line 88), not this poll's observation — so any file present in the old folder but absent from the stored auxiliary_files map (a reference added since the last absorb, or anything read_auxiliary_files excluded) is deleted with no archive copy of it anywhere.",
-      "impact": "A rename can destroy user files that NFR-01's archive-before-write is supposed to make unlosable. The window is small but the loss is total and silent.",
+      "line": 201,
+      "symbol": "_renamed_surface",
+      "evidence": "MEASURED at the real entry point, not inferred. _renamed_surface (line 201) computes the new location as location.with_name(f\"{slugify_name(new_name)}{location.suffix}\"). Its own docstring covers only two cases — \"a new filename stem for a per-file surface, a new slot key for a keyed-map slot\" — and a skill is a third that was never added. A skill's location is <slug>/SKILL.md, so with_name yields <old_slug>/renamed.md instead of <new_slug>/SKILL.md, and therefore skill_folder(new_surface) == skill_folder(old_surface). Line 120 write_surface_content replace_directory_atomic's the renamed skill INTO the old folder; line 122 _remove_stale_location then shutil.rmtree's that same folder. The rename deletes its own output. The comment at lines 111-113 asserts \"the auxiliary files travel to the new slug via the canonical, so the old folder is retired entire\" — a new slug folder that _renamed_surface never produces.",
+      "impact": "One poll after a user edits `name:` in a SKILL.md: SKILL.md and every auxiliary file are gone from every participating tool, the archive holds SKILL.md copies only, SyncState points at a nonexistent <old_slug>/<new-slug>.md, and the poll reports SyncResult(changed=2, failed=(), blocked=()) — success. Three further polls return changed=0; nothing heals. Direct breach of NFR-01 (\"shall not cause loss of user-authored content under any operation\") and of US-04 AC-2 (\"its file or folder is renamed to match the new slug\"). Mitigated only by the stored canonical retaining the bytes, making it recoverable by hand from <state_dir>/canonical/<id>.json — nothing on disk restores it.",
       "sweeper_confidence": "medium",
       "deletable": false,
       "found_during": "seed",
       "found_in_pass": 0,
       "found_at": "2026-08-07",
-      "status": "open"
+      "status": "open",
+      "verification": {
+        "verdict": "corrected",
+        "verified_during": "seed Phase 2.5",
+        "verified_at": "2026-08-07",
+        "development_status": "built_wrong",
+        "development_status_evidence": "Not a plan item. docs/architecture_implementation_plan.md line 352 marks S23i complete — \"S23i ✓ (0.7.58) ... identity_intents (a renamed skill retires its whole old folder)\" — landed in commit d7ea8ee. The folder-retirement behaviour is claimed as delivered. docs/audits/cutover_loose_ends_register_2026_07_12.md line 121 closes the rename amendment as \"realized-by-rebuild\" with the residual action \"verify US-04 AC coverage in the behavioural conformance set\" still outstanding — believed built, never verified.",
+        "method": "Three probes under tmp/, each driving the real entry point sync_once(state_dir, resolved, state, {}, tool_definitions=(claude, cursor)) over real skill folders — never the executor directly with a hand-built plan, so the scenario cannot be an unreachable one. Independently re-run by the orchestrator: tmp/probe_skill_rename_full_tree.py.",
+        "observed": "After one poll renaming name: demo -> name: renamed, with <skills>/demo/{SKILL.md, references/detail.md} on both tools: old path absent, new path never created, both skills directories empty (rglob('*') == []). Archive holds four SKILL.md.<token>.<timestamp> entries and no copy of references/detail.md. Polls 2, 3, 4 all changed=0.",
+        "what_was_refuted": "The sweeper's causal story. It claimed a STALE stored canonical drops an un-absorbed auxiliary file, making the loss racy and narrow (\"the window is small\"). False: reconcile_known._absorb_change emits AbsorbToolEdit before RenameArtifact in the same plan, execute_sync_plan walks intents in order, and read_tool_surfaces._attach_auxiliary_files folds the whole on-disk folder into parsed.auxiliary_files in the same poll — so by the time rename_artifact calls load_canonical the canonical is fresh. Measured: after the rename the canonical contained references/notes.md, a file created seconds before the poll and never previously absorbed. The real defect needs no race at all and is unconditional.",
+        "what_was_upheld": "The flag (data-loss-risk), the file, the symbol rename_artifact, and the approximate line. Also upheld: _archive_surface_bytes passes the SKILL.md path to archive_copy, never skill_folder(surface), so the archive never covers auxiliary files — archive_copy itself would recurse (shutil.copytree) if handed a directory.",
+        "severity_revision": "Raised. The sweeper called the window small; there is no window. Critical as a defect, but zero production blast radius today because src_new/ is not cut over and the live daemon runs the legacy src/ tree. MUST-FIX-BEFORE-CUTOVER, not an incident.",
+        "coverage_hole": "grep -rn rename over tests_new/test_skill_surface.py, test_skill_auxiliary_propagation.py and test_sync_once.py returns nothing. 745 green tests and not one renames a skill. Filed separately as CD-0023."
+      },
+      "proposed_remedy": {
+        "note": "Recorded for activity 4.a; not applied. Remedy risks are the reason this is written down rather than fixed on sight.",
+        "steps": [
+          "_renamed_surface must branch on surface.kind == SKILL_KIND and return location.parent.parent / slugify_name(new_name) / SKILL_FILENAME rather than location.with_name(...).",
+          "_archive_surface_bytes should pass skill_folder(surface) or location to archive_copy, which already handles a directory. This also closes CD-0017 (the skill_folder docstring claiming auxiliary files are archived and removed with the artifact) and the same gap in remove_artifact (CD-0013)."
+        ],
+        "risks": [
+          "reject_shared_write_file compares target_file(surface), the SKILL.md path. After the fix, two skills renamed to the same slug collide at FOLDER level, so the collision guard and US-04 AC-5's RejectCollision must key on the folder for skill surfaces or the guard silently stops guarding.",
+          "Archiving whole folders enlarges archive entries; the NFR-07 tiered GC prunes directory entries via _remove_entry's shutil.rmtree, a path exercised far less than the file path. Needs a test.",
+          "RecordedSurface.location for skills must keep pointing at <new_slug>/SKILL.md so the next poll's observation matches, or the rename converges to a phantom removal.",
+          "_remove_stale_location should assert stale != skill_folder(new_surface) — a cheap invariant that would have made this defect loud instead of silent, and worth adding regardless."
+        ]
+      }
     },
     {
       "uid": "CD-0013",
@@ -373,6 +415,40 @@
       "sweeper_confidence": "low",
       "deletable": false,
       "found_during": "seed",
+      "found_in_pass": 0,
+      "found_at": "2026-08-07",
+      "status": "open"
+    },
+    {
+      "uid": "CD-0023",
+      "owning_activity": "2.d",
+      "flag": "test-spec-gap",
+      "title": "No test in the rebuild suite renames a skill, so US-04 AC-2 is unverified for the skill kind",
+      "file": "tests_new/test_skill_surface.py",
+      "line": null,
+      "symbol": null,
+      "evidence": "grep -rn rename over tests_new/test_skill_surface.py, tests_new/test_skill_auxiliary_propagation.py and tests_new/test_sync_once.py returns nothing. The rebuild suite is 745 passed / 1 xfailed and contains no skill-rename case. US-04 AC-2 requires that on a rename \"its file or folder is renamed to match the new slug; each previously-named file or folder is archived before its rename\", and US-04's Notes put skills explicitly in scope (\"three support skill, but the algorithm does not depend on these counts\").",
+      "impact": "This is the exact verification the cutover register deferred — docs/audits/cutover_loose_ends_register_2026_07_12.md line 121 closes the rename amendment as \"realized-by-rebuild\" with residual action \"verify US-04 AC coverage in the behavioural conformance set\". The gap let a total-data-loss defect (CD-0012) sit in a fully green suite: renaming a skill deletes it from every tool, and nothing failed.",
+      "sweeper_confidence": null,
+      "deletable": false,
+      "found_during": "seed Phase 2.5",
+      "found_in_pass": 0,
+      "found_at": "2026-08-07",
+      "status": "open"
+    },
+    {
+      "uid": "CD-0024",
+      "owning_activity": "0",
+      "flag": "spec-gap",
+      "title": "US-15 does not say whether a rules file's @import structure survives its tool losing the freshness race",
+      "file": "src_new/agents_sync/execute_sync_plan/content_intents.py",
+      "line": 45,
+      "symbol": "absorb_tool_edit",
+      "evidence": "MEASURED. Probe tmp/probe_rules_import_project_site.py settles a plain two-tool rules artifact, then introduces @extra.md into claude while codex is edited more recently. absorb_tool_edit stores the WINNER's parsed canonical wholesale (content_intents.py:45 save_canonical(execution.state_dir, canonical)), and the winner (codex) never saw claude's per_tool_only bag. Observed on claude after the reprojection poll: \"live '@extra.md' directive survives in body: False\", \"front matter leaks rules_source_body: False\" — the whole bag is discarded, so the source body is then preserved ONLY in the archive. US-15 AC-2 requires \"the source file's import directives are preserved verbatim ... not flattened on the tool that authored it\" but is silent on what happens when that tool is outvoted on freshness.",
+      "impact": "This is a governance question, not a code defect, and it is load-bearing for the S23g fix: a render-layer-only restore cannot recover the source body in this arm, because the bag is gone before any render runs. Deciding S23g's scope requires knowing whether the origin's @import structure is meant to survive being outvoted. Filed to activity 0 because resolving it means changing the spec or the code, and the acceptance criterion is a governance artifact needing the owner's ruling.",
+      "sweeper_confidence": null,
+      "deletable": false,
+      "found_during": "seed Phase 2.5",
       "found_in_pass": 0,
       "found_at": "2026-08-07",
       "status": "open"
