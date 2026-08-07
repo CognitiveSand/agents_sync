@@ -11,11 +11,9 @@ from agents_sync.tools._shared_formats import (
 )
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -45,39 +43,44 @@ _MCP_SPELLING = McpSpellingRecipe(
 CODEX_TOOL = ToolDefinition(
     name="codex",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "codex_agents_dir",
-            ".toml",
             structured_text_surface_format("toml", _AGENT_FIELD_MAP),
             default_location=DefaultLocation(_HOME, (".codex", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".toml",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "codex_prompts_dir",
-            ".md",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".codex", "prompts")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        RulesFileSurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "codex_rules_dir",
-            ("AGENTS.md",),
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".codex",)),
+            layout=Layout.RULES_FILE,
+            candidate_filenames=("AGENTS.md",),
             default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "codex_config_file",
             mcp_surface_format(("mcp_servers",), "toml", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".codex", "config.toml")),
+            layout=Layout.KEYED_MAP,
         ),
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "codex_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".codex", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )

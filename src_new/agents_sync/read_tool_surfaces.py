@@ -19,7 +19,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
 from agents_sync.dialects import MalformedSurfaceError
 from agents_sync.dialects.structured_text import deserialize
@@ -36,13 +36,7 @@ from agents_sync.skill_auxiliary_files import (
     auxiliary_files_digest,
     read_auxiliary_files,
 )
-from agents_sync.tools.tool_definition import (
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
-    ResolvedRecipe,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
-)
+from agents_sync.tools.tool_definition import Layout, ResolvedRecipe
 from agents_sync.translation import extract_artifact_id, file_to_canonical
 
 type PreviousObservations = Mapping[SurfaceLocation, SurfaceObservation]
@@ -61,14 +55,17 @@ def read_tool_surfaces(
     file chosen by precedence, and slots inside one shared file."""
     observations: list[SurfaceObservation] = []
     for resolved in surface_specs:
-        if isinstance(resolved.recipe, DirectorySurfaceRecipe):
-            observations.extend(_observe_directory(resolved, previous_observations))
-        elif isinstance(resolved.recipe, KeyedMapSurfaceRecipe):
-            observations.extend(_observe_keyed_map(resolved, previous_observations))
-        elif isinstance(resolved.recipe, SkillFolderSurfaceRecipe):
-            observations.extend(_observe_skill_folder(resolved, previous_observations))
-        else:
-            observations.extend(_observe_rules_file(resolved, previous_observations))
+        match resolved.recipe.layout:
+            case Layout.DIRECTORY:
+                observations.extend(_observe_directory(resolved, previous_observations))
+            case Layout.KEYED_MAP:
+                observations.extend(_observe_keyed_map(resolved, previous_observations))
+            case Layout.SKILL_FOLDER:
+                observations.extend(_observe_skill_folder(resolved, previous_observations))
+            case Layout.RULES_FILE:
+                observations.extend(_observe_rules_file(resolved, previous_observations))
+            case _ as unreachable:
+                assert_never(unreachable)
     return tuple(observations)
 
 
@@ -86,7 +83,6 @@ def _observe_directory(
     resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
     recipe = resolved.recipe
-    assert isinstance(recipe, DirectorySurfaceRecipe)
     if not resolved.path.is_dir():
         return []
     return [
@@ -154,7 +150,6 @@ def _observe_rules_file(
     resolved: ResolvedRecipe, previous: PreviousObservations
 ) -> list[SurfaceObservation]:
     recipe = resolved.recipe
-    assert isinstance(recipe, RulesFileSurfaceRecipe)
     for filename in recipe.candidate_filenames:  # ordered: first present wins (FR-10)
         path = resolved.path / filename
         if path.is_file():
@@ -179,7 +174,6 @@ def _name_unnamed_artifact(
     that *does* declare a name keeps it; nothing overrides the user.
     """
     recipe = resolved.recipe
-    assert isinstance(recipe, RulesFileSurfaceRecipe)
     parsed = observation.parsed
     if isinstance(parsed, ParseFailure) or parsed.name or not recipe.default_artifact_name:
         return observation
@@ -366,20 +360,25 @@ def _projection_location(
 ) -> Path | KeyedMapSlot | None:
     """Where ``resolved`` would place an artifact, or ``None`` if its directory is absent."""
     recipe = resolved.recipe
-    if isinstance(recipe, DirectorySurfaceRecipe):
-        if not resolved.path.is_dir():
-            return None
-        return resolved.path / f"{slug}{recipe.filename_suffix}"
-    if isinstance(recipe, SkillFolderSurfaceRecipe):
-        if not resolved.path.is_dir():
-            return None
-        return resolved.path / slug / SKILL_FILENAME
-    if isinstance(recipe, RulesFileSurfaceRecipe):
-        if not resolved.path.is_dir():
-            return None
-        # FR-10: a rules file that does not exist yet is created under the
-        # highest-precedence declared filename (``AGENTS.md`` where offered).
-        return resolved.path / recipe.candidate_filenames[0]
+    match recipe.layout:
+        case Layout.DIRECTORY:
+            if not resolved.path.is_dir():
+                return None
+            return resolved.path / f"{slug}{recipe.filename_suffix}"
+        case Layout.SKILL_FOLDER:
+            if not resolved.path.is_dir():
+                return None
+            return resolved.path / slug / SKILL_FILENAME
+        case Layout.RULES_FILE:
+            if not resolved.path.is_dir():
+                return None
+            # FR-10: a rules file that does not exist yet is created under the
+            # highest-precedence declared filename (``AGENTS.md`` where offered).
+            return resolved.path / recipe.candidate_filenames[0]
+        case Layout.KEYED_MAP:
+            pass
+        case _ as unreachable:
+            assert_never(unreachable)
     if not resolved.path.parent.is_dir():
         return None
     # A keyed-map slot is keyed by the artifact's own name, not its slug: the slot key

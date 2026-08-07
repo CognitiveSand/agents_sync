@@ -6,9 +6,9 @@ from agents_sync.domain_model.tool_surface import McpSpellingRecipe
 from agents_sync.tools._shared_formats import markdown_surface_format, mcp_surface_format
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -26,32 +26,36 @@ _MCP_SPELLING = McpSpellingRecipe(transport_render_field="type", auth_render_fie
 COPILOT_TOOL = ToolDefinition(
     name="copilot",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "copilot_cli_agents_dir",
-            ".agent.md",
             markdown_surface_format(_AGENT_FIELD_MAP),
             default_location=DefaultLocation(_HOME, (".copilot", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".agent.md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "copilot_vscode_user_prompts_dir",
-            ".prompt.md",
             markdown_surface_format(),
             default_location=None,
+            layout=Layout.DIRECTORY,
+            filename_suffix=".prompt.md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "copilot_vscode_user_instructions_dir",
-            ".instructions.md",
             markdown_surface_format(),
             default_location=None,
+            layout=Layout.DIRECTORY,
+            filename_suffix=".instructions.md",
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "copilot_cli_mcp_config_file",
             mcp_surface_format(("servers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".copilot", "mcp-config.json")),
+            layout=Layout.KEYED_MAP,
         ),
     ),
 )

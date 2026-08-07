@@ -10,11 +10,9 @@ from agents_sync.tools._shared_formats import (
 )
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -40,39 +38,44 @@ _MCP_SPELLING = McpSpellingRecipe(
 CLAUDE_TOOL = ToolDefinition(
     name="claude",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "claude_agents_dir",
-            ".md",
             markdown_surface_format(_AGENT_FIELD_MAP),
             default_location=DefaultLocation(_HOME, (".claude", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "claude_commands_dir",
-            ".md",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".claude", "commands")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        RulesFileSurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "claude_rules_dir",
-            ("AGENTS.md", "CLAUDE.md"),
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".claude",)),
+            layout=Layout.RULES_FILE,
+            candidate_filenames=("AGENTS.md", "CLAUDE.md"),
             default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "claude_mcp_servers_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".claude.json",)),
+            layout=Layout.KEYED_MAP,
         ),
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "claude_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".claude", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )

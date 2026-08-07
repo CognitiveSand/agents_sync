@@ -6,10 +6,9 @@ from agents_sync.domain_model.tool_surface import McpSpellingRecipe
 from agents_sync.tools._shared_formats import markdown_surface_format, mcp_surface_format
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -27,38 +26,43 @@ _MCP_SPELLING = McpSpellingRecipe(transport_render_field="type")
 CURSOR_TOOL = ToolDefinition(
     name="cursor",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "cursor_agents_dir",
-            ".md",
             markdown_surface_format(_AGENT_FIELD_MAP),
             default_location=DefaultLocation(_HOME, (".cursor", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "cursor_commands_dir",
-            ".md",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".cursor", "commands")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "cursor_rules_dir",
-            ".mdc",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".cursor", "rules")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".mdc",
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "cursor_mcp_servers_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".cursor", "mcp.json")),
+            layout=Layout.KEYED_MAP,
         ),
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "cursor_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".cursor", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )

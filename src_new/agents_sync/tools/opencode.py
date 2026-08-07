@@ -18,11 +18,9 @@ from agents_sync.tools._shared_formats import (
 )
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -47,39 +45,44 @@ _MCP_SPELLING = McpSpellingRecipe(
 OPENCODE_TOOL = ToolDefinition(
     name="opencode",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "opencode_agents_dir",
-            ".md",
             markdown_surface_format(),
             default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "opencode_commands_dir",
-            ".md",
             markdown_surface_format(),
             default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "commands")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        RulesFileSurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "opencode_rules_dir",
-            ("AGENTS.md",),
             markdown_surface_format(),
             default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode",)),
+            layout=Layout.RULES_FILE,
+            candidate_filenames=("AGENTS.md",),
             default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "opencode_config_file",
             mcp_surface_format(("mcp",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "opencode.json")),
+            layout=Layout.KEYED_MAP,
         ),
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "opencode_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_CONFIG_DIRECTORY, ("opencode", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )

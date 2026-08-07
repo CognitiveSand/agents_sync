@@ -12,11 +12,9 @@ from agents_sync.tools._shared_formats import (
 )
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     PathAnchor,
-    RulesFileSurfaceRecipe,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -46,39 +44,44 @@ _MCP_SPELLING = McpSpellingRecipe(
 GEMINI_CLI_TOOL = ToolDefinition(
     name="gemini_cli",
     surface_recipes=(
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "agent",
             "gemini_cli_agents_dir",
-            ".md",
             markdown_surface_format(_AGENT_FIELD_MAP),
             default_location=DefaultLocation(_HOME, (".gemini", "agents")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             "slash_command",
             "gemini_cli_commands_dir",
-            ".toml",
             structured_text_surface_format("toml"),
             default_location=DefaultLocation(_HOME, (".gemini", "commands")),
+            layout=Layout.DIRECTORY,
+            filename_suffix=".toml",
         ),
-        RulesFileSurfaceRecipe(
+        SurfaceRecipe(
             "rules",
             "gemini_cli_rules_dir",
-            ("GEMINI.md",),
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".gemini",)),
+            layout=Layout.RULES_FILE,
+            candidate_filenames=("GEMINI.md",),
             default_artifact_name=GLOBAL_RULES_ARTIFACT_NAME,
         ),
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             "mcp_server",
             "gemini_cli_settings_file",
             mcp_surface_format(("mcpServers",), "json", _MCP_SPELLING),
             default_location=DefaultLocation(_HOME, (".gemini", "settings.json")),
+            layout=Layout.KEYED_MAP,
         ),
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "gemini_cli_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".gemini", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )

@@ -25,7 +25,7 @@ from agents_sync.runtime_config import (
     resolve_default_paths,
 )
 from agents_sync.tools.agentic_tools_registry import ALL_TOOL_DEFINITIONS, tool_definition
-from agents_sync.tools.tool_definition import DirectorySurfaceRecipe, ToolDefinition
+from agents_sync.tools.tool_definition import Layout, SurfaceRecipe, ToolDefinition
 
 WINDOWS_ENV = {
     "APPDATA": r"C:\Users\tester\AppData\Roaming",
@@ -190,12 +190,13 @@ def test_recipe_naming_an_unregistered_dialect_fails_closed(tmp_path: Path) -> N
     bad_tool = ToolDefinition(
         "imaginary",
         (
-            DirectorySurfaceRecipe(
+            SurfaceRecipe(
                 "agent",
                 "imaginary_agents_dir",
-                ".md",
                 SurfaceFormat(dialect="no_such_dialect"),
                 default_location=None,
+                layout=Layout.DIRECTORY,
+                filename_suffix=".md",
             ),
         ),
     )

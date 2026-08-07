@@ -25,11 +25,7 @@ from agents_sync.tools.agentic_tools_registry import (
     surface_specs_for,
     tool_definition,
 )
-from agents_sync.tools.tool_definition import (
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
-    RulesFileSurfaceRecipe,
-)
+from agents_sync.tools.tool_definition import Layout
 from agents_sync.translation import canonical_to_file, file_to_canonical
 
 _ARTIFACT_ID = "11111111-1111-4111-8111-111111111111"
@@ -90,21 +86,21 @@ def test_specs_resolve_against_the_provided_paths(tmp_path: Path) -> None:
     specs = surface_specs_for(tool_definition("claude"), paths)
 
     by_kind = {resolved.recipe.kind: resolved for resolved in specs}
-    assert isinstance(by_kind["agent"].recipe, DirectorySurfaceRecipe), (
+    assert by_kind["agent"].recipe.layout is Layout.DIRECTORY, (
         "agent resolves to a directory recipe"
     )
     assert by_kind["agent"].path == tmp_path / "agents", "agent directory resolved from paths"
-    assert isinstance(by_kind["slash_command"].recipe, DirectorySurfaceRecipe), (
+    assert by_kind["slash_command"].recipe.layout is Layout.DIRECTORY, (
         "slash_command resolves to a directory recipe"
     )
-    assert isinstance(by_kind["rules"].recipe, RulesFileSurfaceRecipe), (
+    assert by_kind["rules"].recipe.layout is Layout.RULES_FILE, (
         "rules resolves to a rules-file recipe"
     )
     assert by_kind["rules"].recipe.candidate_filenames == (
         "AGENTS.md",
         "CLAUDE.md",
     ), "rules candidate filenames in precedence order"
-    assert isinstance(by_kind["mcp_server"].recipe, KeyedMapSurfaceRecipe), (
+    assert by_kind["mcp_server"].recipe.layout is Layout.KEYED_MAP, (
         "mcp_server resolves to a keyed-map recipe"
     )
     assert by_kind["mcp_server"].path == tmp_path / ".claude.json", "mcp_server file resolved"

@@ -39,9 +39,9 @@ from agents_sync.read_tool_surfaces import (
 )
 from agents_sync.secret_policy import SECRET_POLICY_ACCEPTED
 from agents_sync.tools.tool_definition import (
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
+    Layout,
     ResolvedRecipe,
+    SurfaceRecipe,
 )
 
 _ARTIFACT_ID = "11111111-1111-4111-8111-111111111111"
@@ -61,11 +61,12 @@ def _keyed_map_spec(file: Path, surface_format: SurfaceFormat) -> ResolvedRecipe
     return ResolvedRecipe(
         "cursor",
         file,
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             kind="mcp_server",
             config_key="cursor_mcp_servers_file",
             surface_format=surface_format,
             default_location=None,
+            layout=Layout.KEYED_MAP,
         ),
     )
 
@@ -74,12 +75,13 @@ def _spec(directory: Path, tool: str) -> ResolvedRecipe:
     return ResolvedRecipe(
         tool,
         directory,
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             kind="agent",
             config_key=f"{tool}_agents_dir",
-            filename_suffix=".md",
             surface_format=_MARKDOWN,
             default_location=None,
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
     )
 
@@ -215,11 +217,12 @@ def test_absorb_of_a_secret_bearing_canonical_is_blocked(tmp_path: Path) -> None
             ResolvedRecipe(
                 "cursor",
                 mcp_dir / "mcp.json",
-                KeyedMapSurfaceRecipe(
+                SurfaceRecipe(
                     kind="mcp_server",
                     config_key="cursor_mcp_servers_file",
                     surface_format=surface.surface_format,
                     default_location=None,
+                    layout=Layout.KEYED_MAP,
                 ),
             ),
         )
@@ -367,11 +370,12 @@ def test_a_projected_slot_reads_back_as_unchanged_next_poll(tmp_path: Path) -> N
     spec = ResolvedRecipe(
         "cursor",
         mcp_dir / "mcp.json",
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             kind="mcp_server",
             config_key="cursor_mcp_servers_file",
             surface_format=mcp_format,
             default_location=None,
+            layout=Layout.KEYED_MAP,
         ),
     )
     from agents_sync.domain_model.tool_surface import KeyedMapSlot

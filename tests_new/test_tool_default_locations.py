@@ -18,8 +18,8 @@ from agents_sync.tools._shared_formats import GLOBAL_RULES_ARTIFACT_NAME
 from agents_sync.tools.agentic_tools_registry import ALL_TOOL_DEFINITIONS, tool_definition
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
+    Layout,
     PathAnchor,
-    RulesFileSurfaceRecipe,
     SurfaceRecipe,
 )
 
@@ -103,7 +103,7 @@ def test_every_whole_file_rules_recipe_declares_the_same_artifact_name() -> None
         (definition.name, recipe.default_artifact_name)
         for definition in ALL_TOOL_DEFINITIONS
         for recipe in definition.surface_recipes
-        if isinstance(recipe, RulesFileSurfaceRecipe)
+        if recipe.layout is Layout.RULES_FILE
     }
     assert declared, "no whole-file rules recipes found"
     assert {name for _tool, name in declared} == {GLOBAL_RULES_ARTIFACT_NAME}, declared

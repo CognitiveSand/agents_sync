@@ -44,70 +44,51 @@ class DefaultLocation:
     relative_parts: tuple[str, ...]
 
 
-@dataclass(frozen=True)
-class DirectorySurfaceRecipe:
-    """Per-file artifacts in a configured directory (agents, commands, rule files)."""
+class Layout(Enum):
+    """How a tool stores one kind of customization on disk.
 
-    kind: str
-    config_key: str
-    filename_suffix: str
-    surface_format: SurfaceFormat
-    default_location: DefaultLocation | None
+    The four are irreducible — they come from the tools, not from us: a directory
+    of files one per artifact; one file chosen from a precedence list; a folder per
+    artifact; one entry inside a file shared with everything else of that kind.
+    The read phase walks each differently, and this is what selects the walk.
+    """
 
-
-@dataclass(frozen=True)
-class KeyedMapSurfaceRecipe:
-    """Artifacts as slots of one configured shared keyed-map file (mcp servers)."""
-
-    kind: str
-    config_key: str
-    surface_format: SurfaceFormat
-    default_location: DefaultLocation | None
+    DIRECTORY = "directory"
+    RULES_FILE = "rules_file"
+    SKILL_FOLDER = "skill_folder"
+    KEYED_MAP = "keyed_map"
 
 
 @dataclass(frozen=True)
-class RulesFileSurfaceRecipe:
-    """The whole-file global-rules family: an ordered filename precedence (FR-10).
+class SurfaceRecipe:
+    """How one tool stores one kind of customization: where to look, and how to read it.
 
-    ``default_artifact_name`` is the name an artifact on this surface takes when the
-    file declares none. A whole-file rules document is plain markdown — ``AGENTS.md``
-    carries no front matter — so unlike every other surface its format supplies no
-    name, and without a default it would fall through to ``slugify_name``'s
-    placeholder slug. The name is what the artifact is reconciled and projected
-    under, so it must be a real identity, and it belongs here as recipe data rather
-    than as a constant inside the dialect (tools-as-data, NFR-11).
+    One shape for all four layouts. They previously had a class each, which meant the
+    four fields every layout needs were declared four times — and two of those classes
+    carried nothing else at all, existing only to be told apart by ``isinstance``.
+
+    The trailing fields apply to some layouts and not others; each names the layout it
+    belongs to. An unused one is inert, never consulted for a layout that has no use
+    for it.
     """
 
     kind: str
     config_key: str
-    candidate_filenames: tuple[str, ...]
     surface_format: SurfaceFormat
     default_location: DefaultLocation | None
+    layout: Layout
+
+    #: ``DIRECTORY``: the suffix a file must carry to be one of this kind's artifacts.
+    filename_suffix: str = ""
+    #: ``RULES_FILE``: candidate filenames in precedence order; first present wins,
+    #: and a file not on the list is never adopted (FR-10).
+    candidate_filenames: tuple[str, ...] = ()
+    #: ``RULES_FILE``: the name an artifact takes when its file declares none. A plain
+    #: ``AGENTS.md`` has no front matter, so unlike every other surface its format
+    #: supplies no name — and a nameless artifact would reconcile under
+    #: ``slugify_name``'s placeholder. Recipe data, not a constant in the dialect
+    #: (tools-as-data, NFR-11).
     default_artifact_name: str = ""
-
-
-@dataclass(frozen=True)
-class SkillFolderSurfaceRecipe:
-    """Skills: a folder per artifact, each holding a ``SKILL.md`` (FR-06, S23f).
-
-    The artifact lives at ``<default_location>/<slug>/SKILL.md``; its identity is the
-    ``pair_id`` embedded in the SKILL.md front-matter (the folder name is cosmetic),
-    so the ``surface_format`` is the same markdown-frontmatter recipe an agent uses.
-    Auxiliary files inside a skill folder are deferred to S23i — until then a folder
-    carrying anything besides ``SKILL.md`` is frozen loudly, never truncated."""
-
-    kind: str
-    config_key: str
-    surface_format: SurfaceFormat
-    default_location: DefaultLocation | None
-
-
-type SurfaceRecipe = (
-    DirectorySurfaceRecipe
-    | KeyedMapSurfaceRecipe
-    | RulesFileSurfaceRecipe
-    | SkillFolderSurfaceRecipe
-)
 
 
 @dataclass(frozen=True)

@@ -19,12 +19,7 @@ from agents_sync.domain_model.canonical_document import CanonicalDocument
 from agents_sync.domain_model.observation import ParseFailure, SurfaceObservation
 from agents_sync.domain_model.tool_surface import KeyedMapSlot, SurfaceFormat
 from agents_sync.read_tool_surfaces import read_tool_surfaces
-from agents_sync.tools.tool_definition import (
-    DirectorySurfaceRecipe,
-    KeyedMapSurfaceRecipe,
-    ResolvedRecipe,
-    RulesFileSurfaceRecipe,
-)
+from agents_sync.tools.tool_definition import Layout, ResolvedRecipe, SurfaceRecipe
 
 _EMBEDDED_ID = "11111111-1111-4111-8111-111111111111"
 
@@ -50,12 +45,13 @@ def _directory_spec(directory: Path) -> ResolvedRecipe:
     return ResolvedRecipe(
         "claude",
         directory,
-        DirectorySurfaceRecipe(
+        SurfaceRecipe(
             kind="agent",
             config_key="claude_agents_dir",
-            filename_suffix=".md",
             surface_format=_MARKDOWN,
             default_location=None,
+            layout=Layout.DIRECTORY,
+            filename_suffix=".md",
         ),
     )
 
@@ -64,11 +60,12 @@ def _keyed_map_spec(file: Path) -> ResolvedRecipe:
     return ResolvedRecipe(
         "cursor",
         file,
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
             kind="mcp_server",
             config_key="cursor_mcp_servers_file",
             surface_format=_MCP,
             default_location=None,
+            layout=Layout.KEYED_MAP,
         ),
     )
 
@@ -348,7 +345,8 @@ def test_a_non_json_representable_slot_value_is_a_parse_failure(tmp_path: Path) 
     spec = ResolvedRecipe(
         "codex",
         file,
-        KeyedMapSurfaceRecipe(
+        SurfaceRecipe(
+            layout=Layout.KEYED_MAP,
             kind="mcp_server",
             config_key="codex_config_file",
             surface_format=SurfaceFormat(
@@ -400,7 +398,8 @@ def _rules_spec(directory: Path, default_artifact_name: str = "") -> ResolvedRec
     return ResolvedRecipe(
         "claude",
         directory,
-        RulesFileSurfaceRecipe(
+        SurfaceRecipe(
+            layout=Layout.RULES_FILE,
             kind="rules",
             config_key="claude_rules_dir",
             candidate_filenames=("AGENTS.md", "CLAUDE.md"),

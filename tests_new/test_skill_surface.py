@@ -20,7 +20,7 @@ from agents_sync.tools.agentic_tools_registry import (
     surface_specs_for,
     tool_definition,
 )
-from agents_sync.tools.tool_definition import SkillFolderSurfaceRecipe
+from agents_sync.tools.tool_definition import Layout
 from agents_sync.translation import canonical_to_file, extract_artifact_id, file_to_canonical
 
 _ARTIFACT_ID = "11111111-1111-4111-8111-111111111111"
@@ -203,5 +203,5 @@ def test_every_skill_tool_resolves_a_skill_spec(tool_name: str, tmp_path: Path) 
 
     skill_specs = [spec for spec in specs if spec.recipe.kind == "skill"]
     assert len(skill_specs) == 1, f"{tool_name} resolves exactly one skill recipe"
-    assert isinstance(skill_specs[0].recipe, SkillFolderSurfaceRecipe)
+    assert skill_specs[0].recipe.layout is Layout.SKILL_FOLDER
     assert skill_specs[0].path == tmp_path

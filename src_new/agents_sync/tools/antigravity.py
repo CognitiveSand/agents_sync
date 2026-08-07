@@ -12,8 +12,9 @@ from __future__ import annotations
 from agents_sync.tools._shared_formats import markdown_surface_format
 from agents_sync.tools.tool_definition import (
     DefaultLocation,
+    Layout,
     PathAnchor,
-    SkillFolderSurfaceRecipe,
+    SurfaceRecipe,
     ToolDefinition,
 )
 
@@ -22,11 +23,12 @@ _HOME = PathAnchor.HOME
 ANTIGRAVITY_TOOL = ToolDefinition(
     name="antigravity",
     surface_recipes=(
-        SkillFolderSurfaceRecipe(
+        SurfaceRecipe(
             "skill",
             "antigravity_skills_dir",
             markdown_surface_format(),
             default_location=DefaultLocation(_HOME, (".gemini", "antigravity", "skills")),
+            layout=Layout.SKILL_FOLDER,
         ),
     ),
 )
