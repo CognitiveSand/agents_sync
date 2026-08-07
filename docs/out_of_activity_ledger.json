@@ -18,7 +18,21 @@
       "found_during": "seed",
       "found_in_pass": 0,
       "found_at": "2026-08-07",
-      "status": "open"
+      "status": "open",
+      "verification": {
+        "verdict": "corrected",
+        "verified_during": "0",
+        "verified_in_pass": 1,
+        "verified_at": "2026-08-07",
+        "development_status": "built_wrong",
+        "method": "Probe tmp/probe_us11_returning_tool.py, driving the real _settle/sync_once path over the same two-tool workspace the xfail uses, reading the filesystem and the canonical store after each stage.",
+        "observed": "One artifact (helper.md) settled on claude + cursor. rmtree(cursor) -> cursor unavailable, claude keeps the artifact (correct, FR-04 holds). cursor.mkdir() -> directory returns present but EMPTY. Result: claude EMPTY, cursor EMPTY, canonical store EMPTY. The artifact is destroyed on the tool that never went away AND its canonical record is dropped; only the archive retains bytes (helper.md x2 plus the canonical json). Three further polls heal nothing.",
+        "what_was_refuted": "The title's framing. This is not 'AC-3 has no implementation' — AC-3 is correctly marked [ ] unchecked in US-11, so an unbuilt AC is not itself a defect. The real finding is a SPEC CONFLICT that the code resolves destructively, and the destruction reaches beyond the returning tool.",
+        "mechanism": "compute_sync_plan.py:130, `glitched = {tool for tool, count in vanish_count.items() if count >= _GLITCH_THRESHOLD}` with _GLITCH_THRESHOLD = 2 (line 60). A tool that loses two or more recorded artifacts in one poll is treated as glitched and its RemoveArtifact intents are swapped for ReprojectCanonical (US-11 AC-9). The docstring at line 118-119 states the counterpart deliberately: 'A lone vanish is a deliberate deletion and is left to propagate.' So with ONE recorded artifact the guard does not fire, reconcile_known._has_vanished_surface (line 64) short-circuits to removal, and the removal propagates to every tool.",
+        "the_asymmetry": "A user with two or more synced artifacts is protected by the glitch guard; a user with exactly one loses everything. Exposure is inversely proportional to how much the user syncs, which is the opposite of what anyone would predict.",
+        "wider_finding": "US-11 AC-3 is phrased entirely as an availability TRANSITION ('Given an agentic_tool's status was unavailable at the previous poll and its directory is present ... at the current poll'). The rebuild does not track per-tool availability across polls at all: sync_once.py:42 count_available_tools computes only a per-poll integer. The transition state was dropped deliberately — the plan records 'Per-tool availability-status transition logging ... Dropped as YAGNI; document the reduced observability. [decision: drop]'. That decision was classified as an observability reduction, but it also orphaned the state US-11 AC-2, AC-3 and AC-5 and NFR-12 are all written in terms of. AC-3 is therefore not merely unbuilt, it is unimplementable as written against the current design. Filed separately as CD-0025.",
+        "is_it_live_in_production": "The xfail asserts this defect is 'shared with the legacy tree'. The legacy tree carries the same vocabulary (src/agents_sync/{sync,adoption/removal_propagator,adoption/engine,adoption/canonical_projection}.py all reference vanish/glitch), but this was NOT measured against legacy — src/ is reference scope and was not probed. UNRESOLVED and worth resolving, because if the xfail's claim holds this is a live data-loss path in the running daemon today, unlike CD-0012."
+      }
     },
     {
       "uid": "CD-0002",
