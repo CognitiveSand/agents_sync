@@ -36,7 +36,35 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 1,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0001"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "1.a": {
@@ -56,7 +84,35 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 1,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0002"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "1.c": {
@@ -66,7 +122,38 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 4,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0003",
+            "CD-0004",
+            "CD-0005",
+            "CD-0006"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "2.a": {
@@ -86,7 +173,37 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 3,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0007",
+            "CD-0008",
+            "CD-0009"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "2.c": {
@@ -106,7 +223,35 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 1,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0010"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "3.a": {
@@ -116,7 +261,37 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 3,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0013",
+            "CD-0014",
+            "CD-0015"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "3.b": {
@@ -136,7 +311,35 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 1,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0016"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "3.d": {
@@ -146,7 +349,37 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 3,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0017",
+            "CD-0018",
+            "CD-0019"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "4.a": {
@@ -156,7 +389,36 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 2,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0011",
+            "CD-0012"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "4.b": {
@@ -166,7 +428,36 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 2,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0020",
+            "CD-0021"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     },
     "4.c": {
@@ -186,7 +477,35 @@
       "has_deferrals": false,
       "passed_at_sha": null,
       "passed_scope": "inherits",
-      "passes": [],
+      "passes": [
+        {
+          "pass": 0,
+          "type": "seed",
+          "started": "2026-08-07",
+          "completed": "2026-08-07",
+          "sweeper": "subagent",
+          "found_this_pass": 1,
+          "fixed_this_pass": 0,
+          "filed_to_other_activities": 0,
+          "reopened_by_this_pass": [],
+          "filed_this_pass_uids": [
+            "CD-0022"
+          ],
+          "open_at_pass_start": 0,
+          "open_at_pass_start_uids": [],
+          "rediscovered": 0,
+          "rediscovered_uids": [],
+          "missed": 0,
+          "missed_uids": [],
+          "rejected": 0,
+          "lines_added": 0,
+          "lines_removed": 0,
+          "expected_direction": "neutral",
+          "direction_note": "Reconnaissance only — no source or test file was touched.",
+          "verification": "n/a",
+          "note": "Seed reconnaissance sweep — one subagent, briefed on the full flag catalogue and the whole scope, deliberately shallow and time-boxed. Returned 22 findings across 12 flag classes and reported no contamination. This is a sample, not an inventory: it satisfies no gate and makes no completeness claim. Its only purpose is to give every activity a non-empty denominator, so that activity 0's and 1.a's verification is not vacuous by construction. Findings carry the sweeper's own confidence rating and are unverified — each is checked under Phase 2.5 by the activity that owns it, before any fix."
+        }
+      ],
       "defects": []
     }
   }
