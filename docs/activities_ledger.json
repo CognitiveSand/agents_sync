@@ -31,7 +31,7 @@
   "activities": {
     "0": {
       "title": "Specs — requirements and user stories exist, are testable, and cover the code",
-      "status": "needs_deeper_pass",
+      "status": "in_progress",
       "verification": "incomplete",
       "has_deferrals": false,
       "passed_at_sha": null,
@@ -172,6 +172,32 @@
           "lines_removed": 0,
           "expected_direction": "neutral",
           "direction_note": "Analysis only; activity 0 changes no code."
+        },
+        {
+          "pass": 3,
+          "type": "deeper",
+          "started": "2026-08-07",
+          "completed": null,
+          "sweeper": "subagent",
+          "sweeper_count": 3,
+          "open_at_pass_start": 2,
+          "open_at_pass_start_uids": [
+            "CD-0001",
+            "CD-0024"
+          ],
+          "verification": null,
+          "note": "Adversarial tier, three fresh concurrent sweepers with different framings, per the protocol's pass-3 depth. All three attack SEQUENCES rather than rules, because both surviving misses live in a sequence and two passes that analysed rules in the abstract walked past them: (a) enumerate the state machine a tool and an artifact actually have and walk every transition against the spec; (b) enumerate two-event orderings inside one poll window; (c) trace the lifecycle of state that belongs to one tool or surface rather than to the artifact, through every operation. This is the last pass the protocol allows; if the misses survive it, that is the reported answer.",
+          "sweeper_events": [
+            {
+              "sweeper": "per-entity state lifecycle (first attempt)",
+              "outcome": "compromised — self-reported, output VOIDED",
+              "how": "The sweeper ran `grep -rn \"<term>\" src_new tests_new docs`. The bare `docs` directory argument reached docs/out_of_activity_ledger.json, docs/architecture_implementation_plan.md and a file under docs/audits/, and their matching lines were rendered into its context.",
+              "what_leaked": "Not adjacent context — the answer key for that sweeper's own assigned defect class. It saw a ledger entry naming the exact per-tool state, the operation that drops it, and the 'owner is not the source' framing, which is one of the two entries in this pass's denominator. It also saw a plan row naming the single fix site and all four call sites.",
+              "root_cause": "The BRIEF, not the agent. It listed forbidden files by name but permitted the four specification files under docs/, and never anticipated a directory-level tool argument reaching siblings. Naming files to avoid does not constrain a recursive search rooted above them.",
+              "remedy": "Output discarded in full; none of its observations filed on its authority. Re-run with a fresh agent under a tightened brief: recursive search permitted ONLY over src_new/ and tests_new/, every specification file opened by exact path, and docs/ never passed as a directory nor enumerated.",
+              "salvaged": "One lead it listed as established BEFORE the leak, and which the leaked material did not concern, was re-derived and verified from scratch by the orchestrator and filed on that evidence as CD-0071 and CD-0072. It is credited to the orchestrator, not to a sweep, and counts toward no rediscovery."
+            }
+          ]
         }
       ],
       "defects": [

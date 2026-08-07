@@ -467,6 +467,40 @@
       "found_in_pass": 0,
       "found_at": "2026-08-07",
       "status": "open"
+    },
+    {
+      "uid": "CD-0071",
+      "owning_activity": "2.b",
+      "flag": "dead-code",
+      "title": "prior_canonical is threaded through six files and four dialects and is None at every call site in the repository",
+      "file": "src_new/agents_sync/translation.py",
+      "line": 88,
+      "symbol": "file_to_canonical",
+      "evidence": "VERIFIED BY THE ORCHESTRATOR, not accepted from a sweeper. `grep -rn file_to_canonical src_new/ tests_new/` gives exactly one production caller — read_tool_surfaces.py:418, `return file_to_canonical(text, tool_surface, None)` — and every other caller is in tests_new/, all of which also pass None (test_tool_field_maps.py:45,76,96,110,126,128,144; test_agentic_tools_registry.py:165,167,198; test_translation.py:47). The parameter is then threaded onward: translation.py:91 `return _dialect_for(tool_surface).parse(text, tool_surface, prior_canonical)` into all four dialects — markdown_frontmatter.py:61,65; structured_text.py:65,74; keyed_map_slot.py:38,42; mcp_server/parse.py:59,66 — and into field_mapping.fold_fields_into_canonical:33. At field_mapping.py:50 and mcp_server/parse.py:66 it does `base = prior_canonical or CanonicalDocument(artifact_id=\"\", kind=tool_surface.kind)`, so `base` is unconditionally the empty document. Its only use is field_mapping.py:52, `_recover_id(fields, surface_format.id_field, base)`.",
+      "impact": "A parameter carried through six modules and every dialect signature, which no caller has ever supplied. It makes each dialect's parse contract look richer than it is, and it makes the `or` fallbacks at two sites read as defensive when they are in fact the only branch ever taken. Identity recovery genuinely happens elsewhere (domain_model/plan/recover_identity.py), so the seam appears to be vestigial rather than unfinished — but that is 2.b's determination to make, and provenance must be established before removal: whether it is a seam whose consumers were removed, or one that was never wired in.",
+      "sweeper_confidence": null,
+      "deletable": true,
+      "found_during": "0",
+      "found_in_pass": 3,
+      "found_at": "2026-08-07",
+      "status": "open"
+    },
+    {
+      "uid": "CD-0072",
+      "owning_activity": "3.d",
+      "flag": "doc-drift-unit",
+      "title": "_recover_id's docstring promises a fallback to the prior id that cannot fire",
+      "file": "src_new/agents_sync/dialects/field_mapping.py",
+      "line": 104,
+      "symbol": "_recover_id",
+      "evidence": "VERIFIED BY THE ORCHESTRATOR. Docstring: \"Carry the embedded id through if present and a non-empty string, else the prior id.\" Body (103-108): `embedded = fields.get(id_field)` / `if isinstance(embedded, str) and embedded: return embedded` / `return base.artifact_id`. But `base` is `prior_canonical or CanonicalDocument(artifact_id=\"\", ...)` (line 50) and prior_canonical is None at every call site in the repository (see CD-0071), so `base.artifact_id` is always the empty string. The documented else-branch returns \"\", never a prior id.",
+      "impact": "The docstring describes a two-way contract where the code has one way. A reader tracing how an artifact keeps its id across a re-parse will believe this function preserves it, and will not look for recover_identity.py, which is where the behaviour actually lives. This is the honesty flag at unit level: the function tells the machine one thing and the human another.",
+      "sweeper_confidence": null,
+      "deletable": false,
+      "found_during": "0",
+      "found_in_pass": 3,
+      "found_at": "2026-08-07",
+      "status": "open"
     }
   ]
 }
