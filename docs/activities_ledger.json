@@ -31,10 +31,10 @@
   "activities": {
     "0": {
       "title": "Specs — requirements and user stories exist, are testable, and cover the code",
-      "status": "needs_deeper_pass",
+      "status": "passed",
       "verification": "incomplete",
-      "has_deferrals": false,
-      "passed_at_sha": null,
+      "has_deferrals": true,
+      "passed_at_sha": "95d4c54",
       "passed_scope": "inherits",
       "passes": [
         {
@@ -1548,7 +1548,14 @@
           "found_at": "2026-08-07",
           "status": "open"
         }
-      ]
+      ],
+      "gate_ruling": {
+        "ruled_by": "user",
+        "ruled_at": "2026-08-07",
+        "ruling": "accept with the miss recorded",
+        "what_this_means": "Activity 0 is `passed` but its verification is `incomplete`, and that pairing is deliberate. Three full passes — five distinct framings, six sweepers — failed to independently rediscover CD-0001. The finding itself is fully characterised and verified by probe; what is unproven is whether the sweep has OTHER holes of the same shape. Whatever else lives in that hole was never filed by anyone, because nobody happened to trip over it.",
+        "how_to_report_it": "Never report activity 0 as simply passed. Every downstream report must carry `verification: incomplete` and the three-pass miss. The status means the ladder was permitted to advance, not that the coverage claim was earned."
+      }
     },
     "1.a": {
       "title": "Formatting normalization",
@@ -1991,5 +1998,16 @@
       ],
       "defects": []
     }
-  }
+  },
+  "operator_decisions": [
+    {
+      "decision": "Keep strict ladder order; safety findings are not pulled forward.",
+      "decided_by": "user",
+      "decided_at": "2026-08-07",
+      "context": "Nine findings are queued for activity 4.a (data loss / perimeter). TWO of them are confirmed live in the daemon running on the user's machine today, not merely pre-cutover: CD-0001 (a tool directory returning EMPTY with exactly one recorded artifact destroys that artifact on every tool and drops its canonical; measured against the legacy tree, which is what the installed daemon runs) and the same lone-vanish edge reachable through CD-0074's filename re-binding. CD-0073 (a rename destroying an unmanaged user file with NO archive copy) is rebuild-only, so it is pre-cutover.",
+      "risk_accepted": "A live data-loss path stays unfixed through activities 1, 2 and 3. Exposure requires a tool whose directory disappears and returns empty while exactly ONE managed artifact was recorded on it — uninstall/reinstall an editor, unmount and remount a share, or a tool updater recreating its directory. Users who sync LESS are more exposed, because the glitch guard needs two or more vanished artifacts to recognise a glitch.",
+      "mitigation_available_to_the_user": "The bytes are not gone: archive/<artifact_id>/<tool>/ retains timestamped copies, and archive/<artifact_id>/_canonical/ retains the canonical. Recovery is manual but complete.",
+      "rationale": "The ladder's ordering exists so that a safety audit is not run over a codebase still being restructured; breaking it for one item invites breaking it for nine. The operator weighed the live exposure against that and chose the order."
+    }
+  ]
 }
