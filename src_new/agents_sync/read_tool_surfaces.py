@@ -63,7 +63,7 @@ def read_tool_surfaces(
             case Layout.SKILL_FOLDER:
                 observations.extend(_observe_skill_folder(resolved, previous_observations))
             case Layout.RULES_FILE:
-                observations.extend(_observe_rules_file(resolved, previous_observations))
+                observations.extend(_observe_rules_file(resolved))
             case _ as unreachable:
                 assert_never(unreachable)
     return tuple(observations)
@@ -146,9 +146,7 @@ def _compose_skill_digest(skill_md_digest: str, auxiliary_digest: str) -> str:
     return _text_digest(f"{skill_md_digest}\0{auxiliary_digest}")
 
 
-def _observe_rules_file(
-    resolved: ResolvedRecipe, previous: PreviousObservations
-) -> list[SurfaceObservation]:
+def _observe_rules_file(resolved: ResolvedRecipe) -> list[SurfaceObservation]:
     recipe = resolved.recipe
     for filename in recipe.candidate_filenames:  # ordered: first present wins (FR-10)
         path = resolved.path / filename
