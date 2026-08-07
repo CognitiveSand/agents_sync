@@ -1064,6 +1064,28 @@
           "found_in_pass": 2,
           "found_at": "2026-08-07",
           "status": "open"
+        },
+        {
+          "uid": "CD-0074",
+          "flag": "spec-gap",
+          "shape": "contradiction",
+          "title": "Creating AGENTS.md beside a tracked CLAUDE.md deletes the rules file from every other tool and mints a new identity",
+          "file": "src_new/agents_sync/read_tool_surfaces.py",
+          "line": 149,
+          "symbol": "_observe_rules_file",
+          "spec_locations": [
+            "US-14 Restart-time migration note",
+            "US-14 Scope note",
+            "US-05 AC-2",
+            "FR-04"
+          ],
+          "evidence": "MEASURED by the orchestrator (tmp/probe_rules_filename_rebind.py) via the real sync_once with claude+codex. US-14's migration note forbids exactly this outcome: 'the artifact re-binds to AGENTS.md; the now-unselected CLAUDE.md is simply no longer the rules artifact (it is not deleted, and ITS DISAPPEARANCE FROM TRACKING IS NOT A REMOVAL-PROPAGATION EVENT because detection — not the file's existence — defines the artifact).' US-14's Scope note describes this very layout as supported: 'a user keeps content in AGENTS.md and a thin CLAUDE.md that @AGENTS.md-imports it.' OBSERVED: with CLAUDE.md adopted and projected to codex, creating claude/AGENTS.md produced `SyncResult(changed=1, failed=('81c02923-...',))`, codex/AGENTS.md ABSENT, and the canonical store EMPTY. Two polls later codex/AGENTS.md returns — re-adopted under a NEW id, the original identity and its history gone. Mechanism: _observe_rules_file returns at the first present candidate, so the poll that first sees AGENTS.md is necessarily the poll in which CLAUDE.md produces no observation; vanished_tools then reports claude and reconcile_known.py:64-65 short-circuits to RemoveArtifact.",
+          "impact": "A file the user ADDED causes the deletion of their global instructions on every other tool, plus loss of the artifact's identity and history. Bytes are recoverable from the archive and the file returns after ~2 polls, so this is disruption and identity loss rather than permanent destruction — but it fires on the exact layout US-14 documents as supported, and it contradicts a note written specifically to forbid it. Also violates FR-04: claude has not stopped having the artifact, only stopped having it under that filename.",
+          "sweeper_confidence": "high",
+          "found_during": "0",
+          "found_in_pass": 3,
+          "found_at": "2026-08-07",
+          "status": "open"
         }
       ]
     },

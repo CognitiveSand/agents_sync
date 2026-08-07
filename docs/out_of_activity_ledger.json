@@ -501,6 +501,30 @@
       "found_in_pass": 3,
       "found_at": "2026-08-07",
       "status": "open"
+    },
+    {
+      "uid": "CD-0073",
+      "owning_activity": "4.a",
+      "flag": "data-loss-risk",
+      "title": "A rename destroys an unmanaged user file at the destination slug with NO archive copy anywhere",
+      "file": "src_new/agents_sync/execute_sync_plan/identity_intents.py",
+      "line": 120,
+      "symbol": "rename_artifact",
+      "evidence": "MEASURED by the orchestrator (tmp/probe_rename_clobbers_unmanaged.py), driving the real sync_once with claude+cursor. rename_artifact archives only the OLD surfaces — `prior_text = old_file.read_text(...)` then `_archive_surface_bytes(...)` (97-102) — and then writes the new location blind at line 120, `write_surface_content(new_surface, final_text, canonical.auxiliary_files)`. There is no exists() check on the destination and no archive_copy of it. reject_shared_write_file (_shared.py:116-123) compares only the intent's own surfaces to each other. The planner's collision guard cannot help either: _index_managed_keys (compute_sync_plan.py:143-159) skips any id not in records, and an unadoptable file has no id. Contrast project_canonical, which DOES archive the prior bytes (content_intents.py:75-82) — rename is the one write path that does not. OBSERVED: victim content survived: False; archive entries containing the victim's text: NONE (the three entries present are all the artifact's own formatter.md locations).",
+      "impact": "Irrecoverable loss of a user-authored file. Every other destructive path in this codebase archives before writing, so this is the only route by which bytes simply cease to exist. The victim is by construction a file the daemon has told the user it is leaving alone — the same poll reported `diagnosed=('.../prettier.md',)`, US-03 AC-10's 'not adopted, not reconciled, not used to block any other reconciliation', while destroying it. Breaches NFR-01 and US-05 AC-1 ('the prior bytes are first written to archive/...').",
+      "sweeper_confidence": "high",
+      "deletable": false,
+      "found_during": "0",
+      "found_in_pass": 3,
+      "found_at": "2026-08-07",
+      "status": "open",
+      "verification": {
+        "verdict": "corrected",
+        "verified_by": "orchestrator probe",
+        "what_was_refuted": "The sweeper's scenario, not its mechanism. It proposed claude + codex, but codex renders agents as .toml while claude renders .md, so the rename wrote prettier.toml and never touched the victim's prettier.md — measured: 'victim content survived: True'. The finding is only reachable when two tools render the SAME kind with the SAME extension.",
+        "corrected_reachability": "Not narrow. agent files are .md on claude, cursor, opencode and gemini_cli; slash_command files are .md on claude, cursor, opencode and codex. Any two of those four collide. (Note cursor's agent recipe is itself a spec violation per CD-0030, but removing it still leaves claude/opencode/gemini_cli.)",
+        "why_this_matters": "A textbook 'right finding, wrong detail'. Acting on the sweeper's scenario would have produced a test that passes against the bug, because the extensions differ — the fix would have looked verified and shipped broken."
+      }
     }
   ]
 }
