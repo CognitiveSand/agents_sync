@@ -1,0 +1,193 @@
+{
+  "schema_version": "3.0.0",
+  "ledger_of": "agents_sync — greenfield rebuild tree",
+  "scope": {
+    "include": [
+      "src_new/**",
+      "tests_new/**"
+    ],
+    "exclude": [
+      "tmp/**",
+      "**/__pycache__/**",
+      "docs/audits/**",
+      "docs/activities_ledger.json",
+      "docs/out_of_activity_ledger.json"
+    ],
+    "reference": [
+      "src/**",
+      "tests/**",
+      "archive/**",
+      "pytest_new.ini",
+      "pyproject.toml",
+      "docs/project_description.md",
+      "docs/project_requirements.md",
+      "docs/architecture.md",
+      "docs/stories/**"
+    ],
+    "reason": "The rebuild tree src_new/ + tests_new/ is the product being cleaned, ahead of the src_new -> src cutover. The legacy src/ and tests/ trees are slated for deletion once the rebuild is fully working and are kept only for reference, so they are readable to explain why a rebuild module ports an odd behaviour, but are never swept and never filed against. docs/audits/ is sealed rather than referenced: it holds nine prior findings reports, and a sweeper that reads one has stopped being blind, which makes the pass compromised by definition. Both ledgers are sealed for the same reason. The governance artifacts (project description, requirements, user stories, architecture) are readable because activities 0 and 2 exist to compare the code against them. tmp/ is scratch and never a product.",
+    "declared_at": "2026-08-07",
+    "declared_by": "user"
+  },
+  "activities": {
+    "0": {
+      "title": "Specs — requirements and user stories exist, are testable, and cover the code",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "1.a": {
+      "title": "Formatting normalization",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "1.b": {
+      "title": "Antipatterns and tautologies",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "1.c": {
+      "title": "Silent swallows",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "2.a": {
+      "title": "Architecture document identification",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "2.b": {
+      "title": "Dead code and architecture doc drift",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "2.c": {
+      "title": "Simplification — is this the simplest design satisfying the requirements",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "2.d": {
+      "title": "Test alignment to spec, and test quality",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "3.a": {
+      "title": "SRP, SOC, DRY, wrong abstraction, POLA",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "3.b": {
+      "title": "God functions",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "3.c": {
+      "title": "God modules",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "3.d": {
+      "title": "Unit-level documentation accuracy and sufficiency",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "4.a": {
+      "title": "Data-loss risk and perimeter breaches",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "4.b": {
+      "title": "Traceability and persistence",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "4.c": {
+      "title": "Secret handling",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    },
+    "4.d": {
+      "title": "Security audit — run last",
+      "status": "not_started",
+      "verification": null,
+      "has_deferrals": false,
+      "passed_at_sha": null,
+      "passed_scope": "inherits",
+      "passes": [],
+      "defects": []
+    }
+  }
+}
