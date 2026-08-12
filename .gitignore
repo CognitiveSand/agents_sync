@@ -18,3 +18,7 @@ dist/
 # Project archive + scratch conventions (per global CLAUDE.md / AGENTS.md §13)
 archive/
 tmp/
+
+# Session handoffs (per AGENTS.md §11). This repo is PUBLIC, so the live
+# handoff stays local: it can name a host, an internal URL or a credential.
+restart.md
